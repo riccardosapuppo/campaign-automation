@@ -270,3 +270,7 @@ Requires **Node 22.5 or newer**, for `node:sqlite`.
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+Developed by **Riccardo Sapuppo**.

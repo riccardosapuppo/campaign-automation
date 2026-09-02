@@ -286,3 +286,6 @@ footer code { font-family: var(--mono); }
 @media (prefers-reduced-motion: no-preference) {
   .panel { transition: border-color 0.15s ease; }
 }
+
+/* Chi l'ha scritto, dove si vede la versione. */
+footer .by { margin-top: 0.4rem; color: var(--ink-faint); font-size: 0.78rem; }
