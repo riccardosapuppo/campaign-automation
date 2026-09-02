@@ -1,0 +1,30 @@
+{
+  "name": "bulk-messaging-automation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sends a personalised campaign to a list of people, and cannot send to anybody who has not agreed to hear from you or who has asked you to stop.",
+  "author": "Riccardo Sapuppo",
+  "license": "MIT",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "sink": "node sink/smtp.js",
+    "build": "node tools/build.mjs",
+    "test": "node --test",
+    "walkthrough": "node tools/walkthrough.mjs",
+    "check:smtp": "node tools/against-a-real-server.mjs",
+    "check:screen": "node tools/through-the-screen.mjs",
+    "check:mark": "node tools/check-mark.mjs",
+    "screenshots": "node tools/screenshots.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
+  }
+}
