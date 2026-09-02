@@ -233,6 +233,70 @@ describe('sending what was allowed', () => {
     kept.close();
   });
 
+  it('honours the injected clock where it DECIDES, not only where it is read', async () => {
+    // The trap this is written against: `now = Date.now()` as a default VALUE,
+    // read once when the arguments were evaluated, while the two places that
+    // decide anything called `Date.now()` themselves. A test could set the
+    // clock and change no outcome — an injection that decides nothing is the
+    // same as no injection at all.
+    //
+    // Here the consent is fresh when the campaign is worked out and years stale
+    // by the time it would be sent. Only a clock consulted AT THE MOMENT OF
+    // SENDING can tell the difference.
+    const { kept, campaign } = set([consented('a@example.invalid')]);
+
+    decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
+    assert.equal(kept.waiting(campaign.id).length, 1, 'it should have been allowed at that point');
+
+    const transport = counting();
+    const said = await run({
+      store: kept,
+      campaign,
+      transport,
+      perMinute: 0,
+      clock: () => NOW + 800 * 86_400_000, // the same run, more than two years later
+    });
+
+    assert.equal(said.sent, 0);
+    assert.equal(said.dropped, 1);
+    assert.equal(transport.sent.length, 0, 'a message went out under a clock that says the consent is stale');
+
+    const dropped = kept.forCampaign(campaign.id).find((one) => one.address === 'a@example.invalid');
+    assert.match(dropped.why, /longer than this campaign treats as current/);
+
+    kept.close();
+  });
+
+  it('and measures the gap with that same clock', async () => {
+    const { kept, campaign } = set([consented('a@example.invalid'), consented('b@example.invalid')]);
+    decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
+
+    // A clock that advances 100 ms per reading: the gap owed comes back reduced
+    // by whatever the clock says the send cost, with no real time involved. How
+    // many times it is read per message is an implementation detail, so the
+    // assertion is that the gap was shortened and not by everything.
+    let tick = NOW;
+    const waited = [];
+
+    await run({
+      store: kept,
+      campaign,
+      transport: counting(),
+      perMinute: 60,
+      clock: () => {
+        const said = tick;
+        tick += 100;
+        return said;
+      },
+      wait: async (ms) => waited.push(ms),
+    });
+
+    assert.equal(waited.length, 1, 'one gap, between the two sends');
+    assert.ok(waited[0] > 0 && waited[0] < 1000, `waited ${waited[0]} ms: the injected clock was not used to work the gap out`);
+
+    kept.close();
+  });
+
   it('does not wait after the last one', async () => {
     const { kept, campaign } = set([consented('a@example.invalid')]);
     decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });

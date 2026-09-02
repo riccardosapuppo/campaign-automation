@@ -97,7 +97,20 @@ export async function run({
   campaign,
   transport,
   perMinute = 30,
-  now = Date.now(),
+  /**
+   * The clock, and it is a function rather than a moment.
+   *
+   * `now = Date.now()` was a value: one reading, taken when the arguments were
+   * evaluated, which is no use to a loop that runs for a quarter of an hour. So
+   * the two places that actually decide something called `Date.now()` directly
+   * instead, and the injected clock was honoured only where it decided nothing.
+   * A test could set it and change no outcome, which is the same as not having
+   * it at all.
+   *
+   * A function, asked each time round, is honoured **where it decides**: the
+   * re-check before each send, and the gap between sends.
+   */
+  clock = () => Date.now(),
   wait = (ms) => new Promise((done) => setTimeout(done, ms)),
   log = () => {},
   stopIfSuppressedSince = true,
@@ -110,7 +123,7 @@ export async function run({
   let dropped = 0;
 
   for (const [at, message] of queue.entries()) {
-    const started = Date.now();
+    const started = clock();
 
     /**
      * Asked again, immediately before sending.
@@ -122,7 +135,7 @@ export async function run({
      */
     if (stopIfSuppressedSince) {
       const contact = store.contact(message.address);
-      const said = mayReceive(contact ?? { address: message.address }, { now: Date.now() });
+      const said = mayReceive(contact ?? { address: message.address }, { now: clock() });
 
       if (!said.ok) {
         store.decide({
@@ -160,7 +173,7 @@ export async function run({
 
     // From the START of this one, not the end.
     if (gap > 0 && at < queue.length - 1) {
-      const owed = gap - (Date.now() - started);
+      const owed = gap - (clock() - started);
       if (owed > 0) await wait(owed);
     }
   }

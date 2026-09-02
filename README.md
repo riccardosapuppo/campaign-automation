@@ -17,6 +17,18 @@ hundred tools have. What separates a campaign tool from a spam script is that
 the second one cannot answer *may I send this*, and this one cannot send
 without answering it.
 
+The original was built for a client and lives in a private repository. This is an
+independent reimplementation, written from scratch with synthetic data.
+
+It stands further from its original than the others in this portfolio, and that
+is worth saying plainly rather than leaving to be noticed. The tool this comes
+from sent its messages by driving a web messaging client with a browser; take
+that away — and it had to go, for the reasons under
+[What it deliberately does not do](#what-it-deliberately-does-not-do) — and what
+remains is a different program with the same purpose. The one idea carried
+across is working out what the columns of an exported spreadsheet mean. The rest
+of this answers a question the original never asked: *may we send this at all?*
+
 ![The console](docs/the-console.png)
 
 ---
@@ -42,7 +54,7 @@ failing later — there is nothing npm could install that would fix it.
 | the service and the console | Node ≥ 24, npm | `node:sqlite`, unflagged |
 | `npm test`, `walkthrough`, `build` | the same | nothing else |
 | `npm run check:smtp` | **Docker** | it sends to Mailpit, a mail catcher nobody here wrote |
-| `npm run check:screen`, `check:mark`, `screenshots` | **Microsoft Edge** (or any Chromium already installed) | they drive the browser on this machine rather than downloading one |
+| `npm run check:screen`, `check:mark`, `screenshots` | **Microsoft Edge** | they drive the browser already on this machine (`channel: 'msedge'`) rather than downloading one. Not any Chromium: that is the channel they ask for by name, and they say so and exit if it is not there |
 
 **Measured, not estimated:** `npm install` fetches 68 packages and writes
 **17 MB** into `node_modules`; the repository itself is **2.3 MB** including the
@@ -210,7 +222,7 @@ from the same spreadsheet, arrive with no history, and are written to again.
 Five layers, and each one has caught something the others could not.
 
 ```bash
-npm test              # 113  the rules, the importer, the template, the store
+npm test              # 115  the rules, the importer, the template, the store
 npm run walkthrough   #  35  the whole story through HTTP, against a live service
 npm run check:screen  #  24  the console, driven with a browser
 npm run check:smtp    #  13  against an SMTP server nobody here wrote
