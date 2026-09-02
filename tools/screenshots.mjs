@@ -80,9 +80,26 @@ try {
     await page.getByRole('button', { name: 'Work out who may be written to' }).click();
     await page.waitForFunction(() => !document.getElementById('do-send').disabled);
 
+    // ------------------------------------------------- 3b. while it goes out
+    //
+    // Caught mid-run on purpose. It is the piece traced from the original, and
+    // a picture is the only way to show that a campaign can be watched and
+    // stopped rather than merely started.
     await page.selectOption('#transport', 'smtp');
+    await page.selectOption('#rate', '30');
     await page.getByRole('button', { name: 'Send' }).click();
-    await page.waitForFunction(() => /sent/.test(document.getElementById('send-said').textContent));
+
+    await page.waitForSelector('#sending[open]');
+    await page.waitForFunction(() => Number(document.getElementById('sent-so-far').textContent) >= 1);
+    await shoot(page, 'while-it-goes-out.png', '#sending');
+
+    await page.getByRole('button', { name: 'Stop sending' }).click();
+    await page.waitForFunction(() => !document.getElementById('sending').open, null, { timeout: 20_000 });
+
+    // Then the rest, so the campaign in the picture below is a finished one.
+    await page.selectOption('#rate', '600');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await page.waitForFunction(() => /sent/.test(document.getElementById('send-said').textContent), null, { timeout: 20_000 });
 
     await shoot(page, 'a-campaign.png', '#panel-campaign');
 

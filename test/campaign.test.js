@@ -297,6 +297,87 @@ describe('sending what was allowed', () => {
     kept.close();
   });
 
+  it('stops when it is asked to, between two messages', async () => {
+    const { kept, campaign } = set([
+      consented('a@example.invalid'),
+      consented('b@example.invalid'),
+      consented('c@example.invalid'),
+    ]);
+
+    decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
+
+    const transport = counting();
+    let asked = false;
+
+    const said = await run({
+      store: kept,
+      campaign,
+      transport,
+      perMinute: 0,
+      keepGoing: () => !asked,
+    });
+
+    // Nothing asked it to stop, so all three went.
+    assert.equal(said.sent, 3);
+    assert.equal(said.stopped, false);
+
+    kept.close();
+
+    // And now the same again, with somebody changing their mind after the first.
+    const second = set([
+      consented('a@example.invalid'),
+      consented('b@example.invalid'),
+      consented('c@example.invalid'),
+    ]);
+
+    decide({ store: second.kept, campaign: second.campaign, contacts: second.kept.everybody(), now: NOW });
+
+    const watched = counting();
+    asked = false;
+
+    const stopped = await run({
+      store: second.kept,
+      campaign: second.campaign,
+      perMinute: 0,
+      keepGoing: () => !asked,
+      transport: {
+        name: 'somebody presses stop',
+        async send(message) {
+          asked = true; // pressed while the first one is going out
+          return watched.send(message);
+        },
+      },
+    });
+
+    assert.equal(stopped.sent, 1, 'it carried on past the message it was asked to stop after');
+    assert.equal(stopped.stopped, true);
+    assert.equal(watched.sent.length, 1);
+
+    // The two that did not go are still waiting, not refused and not failed —
+    // so the same campaign can be sent later without writing to anybody twice.
+    assert.equal(second.kept.waiting(second.campaign.id).length, 2);
+
+    second.kept.close();
+  });
+
+  it('and what it did not send can go later, once', async () => {
+    const { kept, campaign } = set([consented('a@example.invalid'), consented('b@example.invalid')]);
+    decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
+
+    const transport = counting();
+    let asked = true; // stopped before it even starts
+
+    await run({ store: kept, campaign, transport, perMinute: 0, keepGoing: () => !asked });
+    assert.equal(transport.sent.length, 0);
+
+    asked = false;
+    const later = await run({ store: kept, campaign, transport, perMinute: 0, keepGoing: () => !asked });
+
+    assert.equal(later.sent, 2);
+    assert.deepEqual(transport.sent.map((one) => one.to), ['a@example.invalid', 'b@example.invalid']);
+    kept.close();
+  });
+
   it('does not wait after the last one', async () => {
     const { kept, campaign } = set([consented('a@example.invalid')]);
     decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });

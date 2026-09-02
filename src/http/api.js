@@ -33,6 +33,17 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smtpPort = 3609, log = () => {} }) {
   const app = express();
 
+  /**
+   * Campaigns somebody has asked to stop, while they are still going.
+   *
+   * In memory on purpose: a request to stop is about the run happening right
+   * now, in this process. If the process dies the run dies with it, and what
+   * has not been sent is still sitting in the database marked as waiting —
+   * which is the same state a stop leaves it in, and the same one it can be
+   * picked up from.
+   */
+  const asked = new Set();
+
   app.use(express.json({ limit: '8mb' }));
   app.use(express.text({ type: 'text/csv', limit: '8mb' }));
 
@@ -249,6 +260,32 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     });
   });
 
+  /**
+   * Stop the run that is going on right now.
+   *
+   * The original this was rebuilt from had a red button on its progress window,
+   * and it was right to. Fifteen minutes is long enough to notice the wrong
+   * subject line, or that the wrong list was picked, and a run whose only exit
+   * is killing the process stops in the middle of a message rather than between
+   * two.
+   *
+   * What has gone has gone. What has not is left waiting, so the same campaign
+   * can be sent again later and nobody is written to twice.
+   */
+  app.post('/api/campaigns/:id/stop', (request, response) => {
+    const campaign = store.campaign(Number(request.params.id));
+    if (!campaign) return response.status(404).json({ error: 'no campaign with that number' });
+
+    asked.add(campaign.id);
+    log('info', 'asked to stop', { campaign: campaign.name });
+
+    response.json({
+      stopping: true,
+      note: 'it will stop between two messages, never inside one; what has not gone is still waiting',
+      ...store.howItWent(campaign.id),
+    });
+  });
+
   app.get('/api/campaigns/:id', (request, response) => {
     const campaign = store.campaign(Number(request.params.id));
     if (!campaign) return response.status(404).json({ error: 'no campaign with that number' });
@@ -313,10 +350,22 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     }
 
     try {
-      const said = await run({ store, campaign, transport: transports[which](), perMinute, log });
+      asked.delete(campaign.id);
+
+      const said = await run({
+        store,
+        campaign,
+        transport: transports[which](),
+        perMinute,
+        log,
+        keepGoing: () => !asked.has(campaign.id),
+      });
+
       response.json({ transport: which, ...said });
     } catch (error) {
       next(error);
+    } finally {
+      asked.delete(campaign.id);
     }
   });
 

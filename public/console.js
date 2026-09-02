@@ -58,6 +58,25 @@ async function refresh() {
   state.firstAllowed = said.allowed[0]?.address ?? null;
   $('reply-address').placeholder = state.firstAllowed ? `who replied — e.g. ${state.firstAllowed}` : 'who replied';
 
+  // Step 1 of the campaign, kept in step with the list without being a second
+  // copy of it: how many a campaign would reach, counted from the same answer.
+  $('who-many').textContent = said.allowed.length;
+  $('who-preview').replaceChildren(
+    ...said.allowed.slice(0, 4).map((one) => {
+      const li = document.createElement('li');
+      li.textContent = one.address;
+      return li;
+    }),
+    ...(said.allowed.length > 4
+      ? [
+          Object.assign(document.createElement('li'), {
+            className: 'and-more',
+            textContent: `and ${said.allowed.length - 4} more`,
+          }),
+        ]
+      : [])
+  );
+
   if (everybody.length === 0) {
     body.innerHTML = '<tr class="empty"><td colspan="4">Nobody yet. Import a spreadsheet, or use the sample list.</td></tr>';
     return;
@@ -306,17 +325,86 @@ $('do-send').addEventListener('click', async () => {
   $('do-send').disabled = true;
   $('send-said').textContent = 'sending…';
 
-  const said = await post(`/api/campaigns/${state.campaign.id}/send`, {
-    transport: $('transport').value,
-    perMinute: 600,
-  });
+  const waiting = (await ask(`/api/campaigns/${state.campaign.id}`)).messages.filter(
+    (one) => one.state === 'allowed' || one.state === 'sending'
+  ).length;
 
-  $('send-said').textContent = said.error
-    ? said.error
-    : `${said.sent} sent, ${said.failed} would not go, ${said.dropped} dropped because something changed`;
+  openTheProgress(waiting);
+
+  // The request does not come back until the whole run has finished, so the
+  // progress cannot be read from it. It is read from the campaign, which the
+  // service updates as it goes — a row per person, written before the send and
+  // updated after, which is exactly what that shape is for.
+  const watching = watchTheProgress(waiting);
+
+  try {
+    const said = await post(`/api/campaigns/${state.campaign.id}/send`, {
+      transport: $('transport').value,
+      perMinute: Number($('rate').value),
+    });
+
+    $('send-said').textContent = said.error
+      ? said.error
+      : `${said.sent} sent, ${said.failed} would not go, ${said.dropped} dropped because something changed` +
+        (said.stopped ? ' — stopped on request, the rest is still waiting' : '');
+  } finally {
+    clearInterval(watching);
+    $('sending').close();
+  }
 
   await showMessages();
   refresh();
+
+  /**
+   * Pressable again if, and only if, there is something left.
+   *
+   * Disabling it while a run is going is right; leaving it disabled afterwards
+   * was right too, back when a run always emptied the queue. A stop leaves
+   * people still waiting — and a screen that will not send them is a stop
+   * button that quietly ends the campaign instead of pausing it.
+   */
+  const left = (await ask(`/api/campaigns/${state.campaign.id}`)).messages.filter(
+    (one) => one.state === 'allowed'
+  ).length;
+
+  $('do-send').disabled = left === 0;
+  if (left > 0) $('send-said').textContent += ` — ${left} still waiting, press Send again to carry on`;
+});
+
+/**
+ * The progress window, while it goes out.
+ *
+ * Traced from the original, which had exactly this and was right to: a bar,
+ * this many of that many, who is being written to at this moment, and a way
+ * out. Fifteen minutes is long enough to notice the wrong subject line.
+ */
+function openTheProgress(total) {
+  $('to-send').textContent = total;
+  $('sent-so-far').textContent = '0';
+  $('bar-done').style.width = '0%';
+  $('to-whom').textContent = ' ';
+  $('do-stop').disabled = false;
+  $('do-stop').textContent = 'Stop sending';
+  $('sending').showModal();
+}
+
+function watchTheProgress(total) {
+  return setInterval(async () => {
+    const said = await ask(`/api/campaigns/${state.campaign.id}`);
+    const done = said.messages.filter((one) => one.state === 'sent' || one.state === 'failed').length;
+    const now = said.messages.find((one) => one.state === 'sending');
+
+    $('sent-so-far').textContent = done;
+    $('bar-done').style.width = total > 0 ? `${Math.round((done / total) * 100)}%` : '0%';
+    $('to-whom').textContent = now ? now.address : ' ';
+  }, 200);
+}
+
+$('do-stop').addEventListener('click', async () => {
+  $('do-stop').disabled = true;
+  $('do-stop').textContent = 'stopping after this one…';
+
+  await post(`/api/campaigns/${state.campaign.id}/stop`);
 });
 
 function showRefusals(refusals) {

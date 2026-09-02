@@ -349,3 +349,90 @@ footer .by { margin-top: 0.4rem; color: var(--ink-faint); font-size: 0.78rem; }
 }
 
 .glyph .strike { stroke: var(--signal); stroke-width: 1.8; }
+
+/* ------------------------------------------------- the campaign, in steps */
+
+/*
+ * Two columns, and the numbers are not decoration.
+ *
+ * Traced from the tool this was rebuilt from, which laid its send screen out
+ * as 1 / 2 / 3 with the send button carrying the last number and staying dead
+ * until the first two were done. Numbered markers usually decorate a page;
+ * here they are true — this is a sequence, and doing step three first is
+ * exactly the mistake the layout is preventing.
+ */
+.send-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 1.4rem;
+  align-items: start;
+}
+
+.step h3 { margin-top: 0; display: flex; align-items: baseline; gap: 0.45rem; color: var(--ink); }
+
+.badge-step {
+  display: inline-grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font: 700 0.78rem/1 var(--display);
+  letter-spacing: 0;
+}
+.badge-step.last { background: var(--may); }
+
+.who-count { display: flex; align-items: baseline; gap: 0.45rem; margin: 0.3rem 0 0.6rem; }
+.who-count strong { font: 700 2rem/1 var(--display); color: var(--may); font-variant-numeric: tabular-nums; }
+.who-count span { color: var(--ink-soft); font-size: 0.88rem; }
+
+.who-preview { list-style: none; margin: 0 0 0.7rem; padding: 0; }
+.who-preview li { font: 0.8rem/1.7 var(--mono); color: var(--ink-soft); }
+.who-preview .and-more { font-family: var(--sans); color: var(--ink-faint); }
+
+.hint { margin: 0; color: var(--ink-faint); font-size: 0.82rem; max-width: 46ch; }
+
+#steps { border-top: 1px solid var(--line); margin-top: 1.2rem; padding-top: 0.4rem; }
+#steps h3 { display: flex; align-items: center; gap: 0.45rem; color: var(--ink); }
+
+/* ------------------------------------------------------ while it goes out */
+
+#sending {
+  width: min(30rem, 92vw);
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.5rem 1.6rem 1.3rem;
+  color: var(--ink);
+}
+#sending::backdrop { background: rgba(16, 26, 46, 0.55); }
+#sending h2 { margin: 0 0 1rem; font: 700 1.15rem/1.2 var(--display); }
+
+.spinner {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-left: 0.3rem;
+  border: 2px solid var(--line);
+  border-top-color: var(--signal);
+  border-radius: 50%;
+  animation: turning 0.8s linear infinite;
+}
+@keyframes turning { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; border-top-color: var(--line); } }
+
+.bar { height: 8px; border-radius: 999px; background: #e6ebf1; overflow: hidden; }
+.bar-done { height: 100%; width: 0; background: var(--may); transition: width 0.15s linear; }
+@media (prefers-reduced-motion: reduce) { .bar-done { transition: none; } }
+
+.counter { margin: 0.7rem 0 0.1rem; font: 700 1.1rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.to-whom { margin: 0 0 1.1rem; min-height: 1.2rem; font: 0.8rem/1.4 var(--mono); color: var(--ink-soft); }
+
+button.danger { background: var(--held); border-color: var(--held); }
+button.danger:hover:not(:disabled) { background: #8d5308; }
+#sending .hint { margin: 0.8rem auto 0; max-width: 38ch; }
+
+@media (max-width: 60rem) {
+  .send-area { grid-template-columns: minmax(0, 1fr); }
+}

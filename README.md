@@ -172,12 +172,22 @@ customer without anybody noticing. Neither is a thing to leave unexplained.
 
 ---
 
-## A campaign, in two steps
+## A campaign, in three steps
 
 ![A campaign](docs/a-campaign.png)
 
-**Work it out**, then **send it** — and the first step takes no transport at
-all. Not "takes one and does not use it": there is nothing it could send with,
+The shape of this screen is traced from the tool it was rebuilt from, which laid
+its send out as **1 / 2 / 3**, with the send button carrying the last number and
+staying dead until the first two were done. Numbered markers usually decorate a
+page; here they are true — it is a sequence, and doing step three first is the
+mistake the layout exists to prevent.
+
+One step is deliberately different. Step one of the original was a box to paste
+phone numbers into; step one here is a **count**, and there is nowhere to type an
+address at all. Everybody a campaign reaches got onto the list through a file
+with a consent date in it, and a box to paste into would be the hole in that.
+
+Then **work it out**, then **send it** — and the first of those takes no transport at Not "takes one and does not use it": there is nothing it could send with,
 which is the only version of that promise that survives somebody editing the
 file. It writes down a decision for everybody, refusals included, with the
 reason and the rendered message, so what is approved is what goes.
@@ -192,6 +202,21 @@ Only then is a transport chosen, and the default is the one that sends nothing:
 
 A campaign that has never been looked at should not be able to go out because
 somebody pressed the obvious button.
+
+### And it can be stopped halfway
+
+![While it goes out](docs/while-it-goes-out.png)
+
+The other thing worth taking from the original: while a campaign is going out
+there is a bar, a count, the address being written to at this moment, and a red
+button. Four hundred at thirty a minute runs for a quarter of an hour, and for
+that quarter of an hour somebody has to be able to change their mind — because
+the subject line is wrong, or the wrong list was picked.
+
+It stops **between two messages, never inside one**. What has gone has gone;
+what has not is left waiting, so pressing Send again carries on from there and
+nobody is written to twice. A run whose only exit is killing the process stops
+in the middle of a message instead.
 
 ### The rate is not politeness
 
@@ -222,9 +247,9 @@ from the same spreadsheet, arrive with no history, and are written to again.
 Five layers, and each one has caught something the others could not.
 
 ```bash
-npm test              # 118  the rules, the importer, the template, the store
+npm test              # 120  the rules, the importer, the template, the store
 npm run walkthrough   #  36  the whole story through HTTP, against a live service
-npm run check:screen  #  24  the console, driven with a browser
+npm run check:screen  #  31  the console, driven with a browser
 npm run check:smtp    #  13  against an SMTP server nobody here wrote
 npm run check:serving #  22  how the console is served, against the running service
 npm run check:mark    #  11  the icon, at the size it is actually seen

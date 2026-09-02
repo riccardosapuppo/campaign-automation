@@ -114,6 +114,21 @@ export async function run({
   wait = (ms) => new Promise((done) => setTimeout(done, ms)),
   log = () => {},
   stopIfSuppressedSince = true,
+  /**
+   * Whether to carry on, asked before every single send.
+   *
+   * A campaign of four hundred at thirty a minute takes a quarter of an hour,
+   * and for that quarter of an hour somebody has to be able to change their
+   * mind — because the subject line was wrong, because the wrong list was
+   * picked, because somebody walked in. A run that cannot be stopped is a run
+   * where the only way out is killing the process, which stops it in the middle
+   * of a message rather than between two.
+   *
+   * Asked between sends, never during one: what has gone has gone, and what has
+   * not is left `allowed`, still waiting, so the same campaign can be picked up
+   * again later without writing to anybody twice.
+   */
+  keepGoing = () => true,
 }) {
   const gap = perMinute > 0 ? Math.floor(60_000 / perMinute) : 0;
   const queue = store.waiting(campaign.id);
@@ -121,8 +136,16 @@ export async function run({
   let sent = 0;
   let failed = 0;
   let dropped = 0;
+  let stopped = false;
 
   for (const [at, message] of queue.entries()) {
+    // Between two messages, never inside one.
+    if (!keepGoing()) {
+      stopped = true;
+      log('info', 'stopped on request', { campaign: campaign.name, sent, left: queue.length - at });
+      break;
+    }
+
     const started = clock();
 
     /**
@@ -178,6 +201,10 @@ export async function run({
     }
   }
 
-  log('info', 'campaign finished', { campaign: campaign.name, sent, failed, dropped });
-  return { sent, failed, dropped, ...store.howItWent(campaign.id) };
+  log('info', stopped ? 'campaign stopped' : 'campaign finished', { campaign: campaign.name, sent, failed, dropped });
+
+  // `stopped` is not a failure, and it is not success either: it is the third
+  // outcome, and a caller that only knows two of them will report one of the
+  // wrong ones.
+  return { sent, failed, dropped, stopped, ...store.howItWent(campaign.id) };
 }

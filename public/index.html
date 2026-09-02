@@ -102,28 +102,65 @@
         <div class="panel-head">
           <h2><svg class="glyph" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="5" cy="10" r="2.6"/><circle cx="15" cy="10" r="2.6"/><path d="M7.8 10h4.4"/></svg>A campaign</h2>
           <p>
-            Two steps, and the first one sends nothing. Work out who may be
-            written to, read the answer, and only then choose how it goes.
+            Three steps, and the numbers mean it: who it goes to comes from the
+            list, the message is written next, and only then is anything sent —
+            which is a separate press, and can be stopped halfway.
           </p>
         </div>
 
-        <form class="fields" id="campaign-form">
-          <label>Name <input id="c-name" value="March offer" required /></label>
-          <label>From <input id="c-from-address" value="hello@example.invalid" required /></label>
-          <label>Called <input id="c-from-name" value="Harbour Supplies" /></label>
-          <label class="wide">Subject <input id="c-subject" value="{{name | there}}, your March prices" required /></label>
-          <label class="wide">
-            Body
-            <textarea id="c-body" rows="5" required>Hello {{name | there}},
+        <!--
+          Three numbered steps across two columns, then the send.
+
+          The shape is traced from the tool this was rebuilt from: who it goes
+          to on the left with a running count, the message on the right, and a
+          send button that stays dead until both are ready. That last part is
+          the good idea in it — a send button you can press before the thing is
+          ready is a send button somebody presses.
+        -->
+        <form class="send-area" id="campaign-form">
+          <section class="step" id="step-who">
+            <h3><span class="badge-step">1</span> Who it goes to</h3>
+
+            <p class="who-count">
+              <strong id="who-many">—</strong>
+              <span>on the list may be written to</span>
+            </p>
+
+            <ul class="who-preview" id="who-preview"></ul>
+
+            <p class="hint">
+              This is the list above, and the only way to change it is to change
+              the list — there is no box here to paste addresses into. That is
+              the point: everybody a campaign reaches got here through a file
+              with a consent date in it.
+            </p>
+          </section>
+
+          <section class="step" id="step-message">
+            <h3><span class="badge-step">2</span> The message</h3>
+
+            <div class="fields">
+              <label>Name <input id="c-name" value="March offer" required /></label>
+              <label>From <input id="c-from-address" value="hello@example.invalid" required /></label>
+              <label>Called <input id="c-from-name" value="Harbour Supplies" /></label>
+              <label class="wide">Subject <input id="c-subject" value="{{name | there}}, your March prices" required /></label>
+              <label class="wide">
+                Body
+                <textarea id="c-body" rows="6" required>Hello {{name | there}},
 
 Your prices for March are ready. Your account at {{company}} is unchanged.
 
 To stop hearing from us, reply STOP and we will not write again.</textarea>
-          </label>
-          <button type="submit">Make the campaign</button>
+              </label>
+            </div>
+
+            <button type="submit">Make the campaign</button>
+          </section>
         </form>
 
         <div class="steps" id="steps" hidden>
+          <h3><span class="badge-step last">3</span> Send it</h3>
+
           <ol>
             <li id="step-decide">
               <button type="button" id="do-decide">Work out who may be written to</button>
@@ -136,6 +173,13 @@ To stop hearing from us, reply STOP and we will not write again.</textarea>
                   <option value="dry-run">as a dry run — renders everything, sends nothing</option>
                   <option value="file">to a folder — one file each, for somebody to read</option>
                   <option value="smtp">over SMTP — to the sink on 127.0.0.1:3609</option>
+                </select>
+              </label>
+              <label>
+                at
+                <select id="rate">
+                  <option value="30">30 a minute — the pace a real campaign goes at</option>
+                  <option value="600" selected>as fast as it will go</option>
                 </select>
               </label>
               <button type="button" id="do-send" disabled>Send</button>
@@ -159,6 +203,32 @@ To stop hearing from us, reply STOP and we will not write again.</textarea>
         </div>
       </section>
     </main>
+
+    <!--
+      While it is going out.
+
+      Traced from the original's progress window, and it is the piece worth
+      taking: a bar, "this many of that many", who is being written to right
+      now, and a red button that stops it. A campaign of four hundred at thirty
+      a minute runs for a quarter of an hour, and for a quarter of an hour
+      somebody has to be able to change their mind.
+    -->
+    <dialog id="sending">
+      <h2>Sending <span class="spinner" aria-hidden="true"></span></h2>
+
+      <div class="bar"><div class="bar-done" id="bar-done"></div></div>
+
+      <p class="counter">
+        <span id="sent-so-far">0</span> of <span id="to-send">0</span>
+      </p>
+      <p class="to-whom" id="to-whom">&nbsp;</p>
+
+      <button type="button" id="do-stop" class="danger">Stop sending</button>
+      <p class="hint">
+        It stops between two messages, never inside one. What has not gone stays
+        waiting, so the same campaign can go later and nobody is written to twice.
+      </p>
+    </dialog>
 
     <!-- One person's whole history --------------------------------------- -->
     <dialog id="history">

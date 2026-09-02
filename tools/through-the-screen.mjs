@@ -135,6 +135,13 @@ async function run() {
     is('and one fewer may be written to', Number(await text(page, '#tally-allowed')), Number(before) - 1);
 
     // ------------------------------------------------------ 5. the campaign
+    say('step one says who it would go to, without a box to paste addresses into');
+
+    const may = (await (await fetch(`http://127.0.0.1:${PORT}/api/contacts`)).json()).allowed.length;
+
+    is('the count on the screen is the list, not a second copy of it', Number(await text(page, '#who-many')), may);
+    is('and there is nowhere to type an address into a campaign', await page.locator('#step-who textarea, #step-who input').count(), 0);
+
     say('a campaign is written on the screen');
     await page.getByRole('button', { name: 'Make the campaign' }).click();
     await page.waitForSelector('#steps:not([hidden])');
@@ -153,11 +160,45 @@ async function run() {
     const said = await (await fetch(`http://127.0.0.1:${PORT}/api/campaigns/1`)).json();
     is('every decision is drawn, refusals included', drawn, said.messages.length);
 
-    // ---------------------------------------------------------- 6. sending
-    say('and then it is sent, over SMTP, to a server that is really listening');
-    await page.selectOption('#transport', 'smtp');
+    // ------------------------------------------- 6. it can be stopped halfway
+    //
+    // The power this project claims most loudly after the permission check: a
+    // campaign runs for a quarter of an hour and somebody has to be able to
+    // change their mind. A stop that only exists in the API is a stop nobody
+    // can reach, so it is pressed here, on the screen, mid-run.
+    say('and while it goes out it can be stopped, from the screen');
+
+    await page.selectOption('#transport', 'dry-run');
+    await page.selectOption('#rate', '30'); // one every two seconds, so there is a middle to stop in
     await page.getByRole('button', { name: 'Send' }).click();
-    await page.waitForFunction(() => /sent/.test(document.getElementById('send-said').textContent));
+
+    await page.waitForSelector('#sending[open]');
+    is('a progress window comes up', await page.locator('#sending').isVisible(), true);
+
+    // Wait until at least one has actually gone, so this stops something that
+    // is running rather than something that has not begun.
+    await page.waitForFunction(() => Number(document.getElementById('sent-so-far').textContent) >= 1);
+
+    const wanted = Number(await text(page, '#to-send'));
+    is('and it says how many are going', wanted > 1, true);
+
+    await page.getByRole('button', { name: 'Stop sending' }).click();
+    await page.waitForFunction(() => !document.getElementById('sending').open, null, { timeout: 20_000 });
+
+    has('the screen says it was stopped', await text(page, '#send-said'), 'stopped on request');
+
+    const afterStop = await (await fetch(`http://127.0.0.1:${PORT}/api/campaigns/1`)).json();
+    const went = afterStop.messages.filter((one) => one.state === 'sent').length;
+
+    is('fewer went than were queued', went < wanted, true);
+    is('and the rest are still waiting, not lost', afterStop.messages.some((one) => one.state === 'allowed'), true);
+
+    // ---------------------------------------------------------- 7. sending
+    say('and then the rest is sent, over SMTP, to a server that is really listening');
+    await page.selectOption('#transport', 'smtp');
+    await page.selectOption('#rate', '600');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await page.waitForFunction(() => /sent/.test(document.getElementById('send-said').textContent), null, { timeout: 20_000 });
 
     has('the screen says what happened', await text(page, '#send-said'), 'sent');
 
