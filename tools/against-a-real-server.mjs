@@ -73,11 +73,23 @@ try {
     { stdio: 'ignore' }
   );
 
-  await untilAnswering(SMTP_PORT);
-  await untilAnswering(WEB_PORT);
+  // The order matters: the container's own word first, a socket only after.
+  await untilTheContainerSaysItIsListening('SMTP server', /\[smtpd\] starting on/);
+  await untilTheContainerSaysItIsListening('web interface', /\[http\] starting on/);
+
+  await untilItGreetsUs(SMTP_PORT);
+  await untilItAnswersQuestions(WEB_PORT);
 
   await send();
   await readBack();
+} catch (error) {
+  // Said as a sentence. Without this the failure arrives as an unhandled
+  // rejection with a stack trace from inside a socket handler, printed AFTER
+  // the line saying the container was removed — so it reads as though the
+  // cleanup broke rather than the check.
+  bad += 1;
+  checks += 1;
+  console.log(`\n  NO    the check could not be carried out\n          ${error.message}`);
 } finally {
   // Always, including on the way out of a failure. A check that leaves a
   // container running is a check that has to be cleaned up after.
@@ -216,20 +228,93 @@ function works(command, argv) {
   return said.status === 0;
 }
 
-async function untilAnswering(port) {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const open = await new Promise((done) => {
-      const socket = net.createConnection({ host: '127.0.0.1', port });
-      socket.once('connect', () => {
-        socket.destroy();
-        done(true);
-      });
-      socket.once('error', () => done(false));
-    });
+/**
+ * Waits for the container to say, itself, that it is listening.
+ *
+ * **Without touching the network, and this is the whole point.** Three versions
+ * of this function were wrong, each in a way that only showed up somewhere else:
+ *
+ * 1. *Wait for the port to accept a connection.* Docker publishes a port by
+ *    binding it on the host the moment the container starts, so a TCP connect
+ *    succeeds against Docker's forwarder while the server behind it does not
+ *    exist yet. On this workstation the container was ready before the first
+ *    message went out and nothing was noticed; on a CI runner it was not, and
+ *    the check died with "the server hung up in the middle of the conversation"
+ *    — a true sentence about the wrong thing.
+ *
+ * 2. *Wait for the SMTP `220` greeting.* Better, and still wrong: connecting
+ *    through the forwarder BEFORE the server is up leaves it in a state it does
+ *    not recover from. Measured here — twenty attempts over twenty-two seconds
+ *    all timed out, while the container's own log showed it listening after
+ *    four; a single connection made after waiting succeeded first time. The
+ *    early knock is what breaks it, so a readiness check that knocks early
+ *    cannot be the way.
+ *
+ * 3. So: read the container's log until the server says it is listening, and
+ *    only then open the first socket. Nothing else can produce that line, and
+ *    asking for it costs no connection.
+ *
+ * The log format belongs to Mailpit, which is why the image is pinned to an
+ * exact version rather than a tag that moves. If the line ever changes, this
+ * fails loudly with what it was waiting for and what it actually saw.
+ */
+async function untilTheContainerSaysItIsListening(what, saying) {
+  let last = '';
 
-    if (open) return;
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    last = String(execFileSync('docker', ['logs', NAME], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+
+    if (saying.test(last)) return;
     await new Promise((done) => setTimeout(done, 100));
   }
 
-  throw new Error(`${IMAGE} never answered on ${port}`);
+  throw new Error(
+    `${IMAGE} never said it had started its ${what}.\n` +
+      `          waiting for: ${saying}\n` +
+      `          the log said: ${last.trim().split('\n').slice(-3).join(' | ') || '(nothing)'}`
+  );
+}
+
+/** And then one real connection, which by now is expected to work first time. */
+async function untilItGreetsUs(port) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const greeted = await new Promise((done) => {
+      const socket = net.createConnection({ host: '127.0.0.1', port });
+      socket.setEncoding('utf8');
+      socket.setTimeout(2000);
+
+      const finish = (said) => {
+        socket.destroy();
+        done(said);
+      };
+
+      socket.once('data', (chunk) => finish(/^220[ -]/.test(chunk)));
+      socket.once('error', () => finish(false));
+      socket.once('timeout', () => finish(false));
+    });
+
+    if (greeted) return;
+    await new Promise((done) => setTimeout(done, 200));
+  }
+
+  throw new Error(`${IMAGE} said it was listening on ${port}, and then did not greet us`);
+}
+
+/** The web side: an answer to a real question, not an open port. */
+async function untilItAnswersQuestions(port) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/api/v1/messages?limit=1`);
+      if (response.ok) {
+        await response.json();
+        return;
+      }
+    } catch {
+      /* not up yet */
+    }
+
+    await new Promise((done) => setTimeout(done, 200));
+  }
+
+  throw new Error(`${IMAGE} never answered its own API on ${port}`);
 }
