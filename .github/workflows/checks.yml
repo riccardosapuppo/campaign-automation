@@ -1,0 +1,71 @@
+name: checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # The layers that need nothing but Node. Kept separate from the browser and
+  # Docker ones so a failure says which layer failed without anybody reading a
+  # log.
+  rules-and-service:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # node:sqlite. Anything older cannot run this at all, which is worth
+          # finding out here rather than on somebody's machine.
+          node-version: '22.5'
+
+      - run: npm ci
+
+      - name: it starts
+        run: npm run build
+
+      - name: the rules
+        run: npm test
+
+      - name: the whole story, through HTTP
+        run: npm run walkthrough
+
+      - name: nothing anywhere refers to a real recipient
+        # Every address in this repository ends in .invalid, which is reserved
+        # by RFC 2606 and can never be delivered to. A sample list that quietly
+        # acquires a real address is a sample list that sends somebody a test
+        # campaign.
+        run: |
+          if grep -rEn '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' \
+               --include='*.js' --include='*.mjs' --include='*.csv' \
+               --include='*.html' --include='*.md' --include='*.json' \
+               . | grep -v node_modules | grep -v '\.invalid' | grep -v 'example\.com'; then
+            echo "an address above is not a .invalid one"
+            exit 1
+          fi
+          echo "every address is unreachable by construction"
+
+  # Against somebody else's SMTP server, because the sink and the client here
+  # were written together and would agree about the same mistake.
+  against-a-real-server:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.5'
+
+      - run: npm ci
+      - run: npm run check:smtp
+
+# `npm run check:screen` and `npm run check:mark` are not here, and that is
+# deliberate rather than an omission. Both drive the browser already installed
+# on the machine (`channel: 'msedge'`) instead of downloading one, which is the
+# right trade on a workstation and impossible on a runner that has no browser.
+# Making them pass in CI would mean pulling several hundred megabytes of
+# Chromium on every push to check an icon. They are run before every commit
+# instead, and they say plainly when they cannot run.
+
