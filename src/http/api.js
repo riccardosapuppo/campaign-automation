@@ -22,7 +22,7 @@ import { mayReceive, looksLikeStop, sortOut } from '../rules/permission.js';
 import { read as readCsv } from '../import/csv.js';
 import { fieldsIn, whoIsMissingSomething } from '../render/template.js';
 import { decide, run } from '../send/campaign.js';
-import { dryRun, toFolder, smtp } from '../send/transports.js';
+import { dryRun, toFolder, smtp, WHAT_THERE_IS } from '../send/transports.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,13 +41,43 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
   // talking to this.
   const root = path.join(here, '..', '..');
 
-  app.use(express.static(path.join(root, 'public'), { etag: false, maxAge: 0 }));
+  /**
+   * How the console is served, which is not a detail.
+   *
+   * `express.static` with `etag: false` looks like it has turned off
+   * revalidation and has not: `lastModified` is a separate option and defaults
+   * to true, so every response still carried a `Last-Modified`, and every
+   * reload was a conditional request that a browser is entitled to answer from
+   * its own cache with a 304. That is the mechanism by which somebody presses
+   * reload after a rebuild and is served the page from before it — and then
+   * has to be told to press Ctrl+F5, which is not an answer.
+   *
+   * So: nothing here is stored at all, and there is nothing to revalidate
+   * against. Not "the page is no-store and the rest is immutable", which is the
+   * arrangement for a site whose assets carry a hash in their name — these do
+   * not, so serving `console.js` as immutable would mean a change to it never
+   * reaching anybody. Fingerprinting three files to save three requests on
+   * localhost would be machinery for its own sake.
+   *
+   * `npm run check:serving` asserts all of this against the running service,
+   * because a caching header is exactly the kind of thing that is right in the
+   * source and wrong in the response.
+   */
+  const never = {
+    etag: false,
+    lastModified: false,
+    setHeaders(response) {
+      response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    },
+  };
+
+  app.use(express.static(path.join(root, 'public'), never));
 
   // The sample spreadsheet, so the button on the screen that says "use the
   // sample list" reads the same file a person would pick from the file dialog
   // — rather than a copy of it pasted into the page, which is how a sample
   // stops matching the file it is supposed to be.
-  app.use('/samples', express.static(path.join(root, 'samples'), { etag: false, maxAge: 0 }));
+  app.use('/samples', express.static(path.join(root, 'samples'), never));
 
   app.get('/api/health', (_request, response) => {
     response.json({ ok: true, ...store.counts() });
@@ -265,10 +295,14 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
       smtp: () => smtp({ host: smtpHost, port: smtpPort }),
     };
 
-    if (!transports[which]) {
+    // The service refuses a name the module does not list, and the module's
+    // list is pinned by a test. Adding a transport here without adding it there
+    // makes it unreachable rather than quietly available — which is the right
+    // way round for the one thing this project promises it does not have.
+    if (!WHAT_THERE_IS.includes(which) || !transports[which]) {
       return response
         .status(400)
-        .json({ error: `there is no "${which}" transport`, there_is: Object.keys(transports) });
+        .json({ error: `there is no "${which}" transport`, there_is: WHAT_THERE_IS });
     }
 
     if (store.waiting(campaign.id).length === 0) {

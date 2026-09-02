@@ -9,6 +9,30 @@
  * first one eventually.
  */
 
+/**
+ * Nothing here installs a service worker, and this makes sure nothing has.
+ *
+ * A service worker outlives the version that installed it, and it outlives the
+ * page: it goes on answering from its own cache long after the code that put it
+ * there is gone. A tool served on 127.0.0.1 shares an origin with every other
+ * thing anybody has ever run on that port, so a worker left behind by an
+ * unrelated project is enough to serve somebody a page that no longer exists.
+ * The symptom is a stale screen that only Ctrl+F5 fixes, which sends people
+ * looking at caching headers that were right all along.
+ */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((workers) => Promise.all(workers.map((one) => one.unregister())))
+    .then((undone) => {
+      if (undone.length > 0) console.info(`unregistered ${undone.length} service worker(s) left on this origin`);
+      return globalThis.caches?.keys().then((names) => Promise.all(names.map((one) => caches.delete(one))));
+    })
+    .catch(() => {
+      /* a browser that will not say has nothing for us to undo */
+    });
+}
+
 const $ = (id) => document.getElementById(id);
 
 const state = { campaign: null, firstAllowed: null };

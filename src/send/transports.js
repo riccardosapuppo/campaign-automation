@@ -25,6 +25,19 @@ import fs from 'node:fs';
 import net from 'node:net';
 
 /**
+ * Every way a message can leave this program. There are three, and that is the
+ * claim the README makes about it.
+ *
+ * Written down here, in one place, so it can be **asserted** rather than
+ * described. The README paragraph explaining that the browser-driving transport
+ * was left out on purpose is worth nothing on the day somebody adds a fourth
+ * entry: a paragraph cannot fail. This list can — a test pins it, the service
+ * refuses any name not in it, and continuous integration greps `src/` for a
+ * browser driver. Three places, none of them prose.
+ */
+export const WHAT_THERE_IS = ['dry-run', 'file', 'smtp'];
+
+/**
  * @typedef {object} Transport
  * @property {string} name
  * @property {(message: object) => Promise<{ why: string }>} send

@@ -42,6 +42,22 @@ jobs:
       - name: the whole story, through HTTP
         run: npm run walkthrough
 
+      - name: nobody can be served yesterday's page
+        run: npm run check:serving
+
+      - name: the transport this project refuses to have is still not here
+        # The README explains at length that driving somebody's web messaging
+        # client with a browser was left out on purpose. A paragraph cannot
+        # fail; this can. Unit tests pin the same thing from the inside — this
+        # is the view from outside, and it also catches a driver arriving in a
+        # file no test imports.
+        run: |
+          if grep -rEn "(import|require)[^\n]*(puppeteer|playwright|selenium|webdriver|chrome-remote-interface)" src/; then
+            echo "a browser driver is imported in src/ — see 'What it deliberately does not do' in the README"
+            exit 1
+          fi
+          echo "no browser driver anywhere in src/"
+
       - name: nothing anywhere refers to a real recipient
         # Every address in this repository ends in .invalid, which is reserved
         # by RFC 2606 and can never be delivered to. A sample list that quietly

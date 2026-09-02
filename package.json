@@ -14,6 +14,7 @@
     "test": "node --test",
     "walkthrough": "node tools/walkthrough.mjs",
     "check:smtp": "node tools/against-a-real-server.mjs",
+    "check:serving": "node tools/how-it-is-served.mjs",
     "check:screen": "node tools/through-the-screen.mjs",
     "check:mark": "node tools/check-mark.mjs",
     "screenshots": "node tools/screenshots.mjs"
