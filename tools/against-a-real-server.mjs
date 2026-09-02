@@ -30,6 +30,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import net from 'node:net';
 
+import { matchesTheReadme } from './what-the-readme-claims.mjs';
+
 import { smtp } from '../src/send/transports.js';
 
 const IMAGE = 'axllent/mailpit:v1.21';
@@ -46,14 +48,14 @@ if (!works('docker', ['version'])) {
   console.error(
     [
       '',
-      "  Docker non risponde, e questo controllo non puo essere eseguito senza.",
+      '  Docker is not answering, and this check cannot run without it.',
       '',
-      '  Serve perche il punto e proprio non fidarsi del sink scritto qui dentro:',
-      '  il client e il sink sono stati scritti insieme, quindi qualsiasi cosa',
-      '  sbaglino allo stesso modo, la sbagliano di comune accordo. Questo',
-      '  controllo li mette davanti a un server SMTP di qualcun altro.',
+      '  It is needed because the whole point is not to trust the sink written in',
+      '  this repository: the client and the sink were written together, so',
+      '  anything they both get wrong they agree about. This check puts them in',
+      "  front of somebody else's SMTP server.",
       '',
-      `  Avvia Docker Desktop e riprova, oppure esegui:  docker run --rm ${IMAGE}`,
+      `  Start Docker and try again, or run:  docker run --rm ${IMAGE}`,
       '',
     ].join('\n')
   );
@@ -97,7 +99,11 @@ try {
   console.log(`\n  ${NAME} removed`);
 }
 
-console.log(`\n${bad === 0 ? 'tutto a posto' : 'ci sono problemi'}: ${checks - bad}/${checks}`);
+// The README's own claim about this command, checked by this command.
+console.log('');
+if (!matchesTheReadme('npm run check:smtp', checks)) bad += 1;
+
+console.log(`\n${bad === 0 ? `All ${checks} checks passed.` : `${bad} of ${checks} checks failed.`}`);
 process.exitCode = bad === 0 ? 0 : 1;
 
 // ---------------------------------------------------------------------------

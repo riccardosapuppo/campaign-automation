@@ -28,6 +28,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
+import { matchesTheReadme } from './what-the-readme-claims.mjs';
+
 const PORT = 3638;
 const SINK = 3639;
 const SINK_WEB = 3640;
@@ -37,8 +39,8 @@ let chromium;
 try {
   ({ chromium } = createRequire(import.meta.url)('playwright-core'));
 } catch {
-  console.error('playwright-core non e installato qui, quindi questo controllo non puo essere eseguito.');
-  console.error('E un controllo, non una dipendenza del programma:  npm install --save-dev playwright-core');
+  console.error('playwright-core is not installed here, so this check cannot run.');
+  console.error('It is a check, not a dependency of the program:  npm install --save-dev playwright-core');
   process.exit(2);
 }
 
@@ -55,7 +57,11 @@ try {
   fs.rmSync(folder, { recursive: true, force: true });
 }
 
-console.log(`\n${bad === 0 ? 'tutto a posto' : 'ci sono problemi'}: ${checks - bad}/${checks}`);
+// The README's own claim about this command, checked by this command.
+console.log('');
+if (!matchesTheReadme('npm run check:screen', checks)) bad += 1;
+
+console.log(`\n${bad === 0 ? `All ${checks} checks passed.` : `${bad} of ${checks} checks failed.`}`);
 process.exitCode = bad === 0 ? 0 : 1;
 
 async function run() {

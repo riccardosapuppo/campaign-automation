@@ -21,6 +21,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { matchesTheReadme } from './what-the-readme-claims.mjs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -50,8 +52,8 @@ let chromium;
 try {
   ({ chromium } = createRequire(import.meta.url)('playwright-core'));
 } catch {
-  console.error('\nplaywright-core non e installato qui, quindi il controllo a 16 pixel non puo essere eseguito.');
-  console.error('E la meta che conta:  npm install --save-dev playwright-core');
+  console.error('\nplaywright-core is not installed here, so the check at 16 pixels cannot run.');
+  console.error('That is the half that matters:  npm install --save-dev playwright-core');
   process.exit(2);
 }
 
@@ -84,7 +86,11 @@ try {
   await browser.close();
 }
 
-console.log(`\n${bad === 0 ? 'tutto a posto' : 'ci sono problemi'}: ${checks - bad}/${checks}`);
+// The README's own claim about this command, checked by this command.
+console.log('');
+if (!matchesTheReadme('npm run check:mark', checks)) bad += 1;
+
+console.log(`\n${bad === 0 ? `All ${checks} checks passed.` : `${bad} of ${checks} checks failed.`}`);
 process.exitCode = bad === 0 ? 0 : 1;
 
 // ---------------------------------------------------------------------------

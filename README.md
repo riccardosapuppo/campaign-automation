@@ -210,7 +210,7 @@ from the same spreadsheet, arrive with no history, and are written to again.
 Five layers, and each one has caught something the others could not.
 
 ```bash
-npm test              #  86  the rules, the importer, the template, the store
+npm test              # 102  the rules, the importer, the template, the store
 npm run walkthrough   #  35  the whole story through HTTP, against a live service
 npm run check:screen  #  24  the console, driven with a browser
 npm run check:smtp    #  13  against an SMTP server nobody here wrote

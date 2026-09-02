@@ -21,6 +21,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
+import { matchesTheReadme } from './what-the-readme-claims.mjs';
+
 const PORT = 3618;
 const SINK = 3619;
 const SINK_WEB = 3620;
@@ -44,7 +46,11 @@ try {
   fs.rmSync(folder, { recursive: true, force: true });
 }
 
-console.log(`\n${bad === 0 ? 'tutto a posto' : 'ci sono problemi'}: ${checks - bad}/${checks}`);
+// The README's own claim about this command, checked by this command.
+console.log('');
+if (!matchesTheReadme('npm run walkthrough', checks)) bad += 1;
+
+console.log(`\n${bad === 0 ? `All ${checks} checks passed.` : `${bad} of ${checks} checks failed.`}`);
 process.exitCode = bad === 0 ? 0 : 1;
 
 async function run() {
