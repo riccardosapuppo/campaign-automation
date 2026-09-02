@@ -78,6 +78,40 @@ describe('nothing in src/ drives a browser', () => {
   });
 });
 
+describe('the page fetches nothing from anywhere', () => {
+  const web = ['index.html', 'console.css', 'console.js'].map((one) => ({
+    file: one,
+    text: fs.readFileSync(path.join(root, 'public', one), 'utf8'),
+  }));
+
+  it('no stylesheet, script or font comes from another origin', () => {
+    // A tool whose claim is that nothing leaves this machine cannot open with a
+    // request to a font host telling it that this console exists and that
+    // somebody is looking at it.
+    const outside = web.filter((one) => /(src|href)\s*=\s*["']https?:|url\(\s*["']?https?:/i.test(one.text));
+
+    assert.deepEqual(outside.map((one) => one.file), []);
+  });
+
+  it('and the face it uses is in the repository, with its licence', () => {
+    const css = web.find((one) => one.file === 'console.css').text;
+
+    assert.match(css, /@font-face/, 'no face is declared at all, so the console falls back to whatever is installed');
+
+    for (const face of [...css.matchAll(/url\('([^']+\.woff2)'\)/g)].map((one) => one[1])) {
+      assert.ok(fs.existsSync(path.join(root, 'public', face)), `${face} is declared and not shipped`);
+    }
+
+    assert.ok(fs.existsSync(path.join(root, 'public', 'fonts', 'OFL.txt')), 'the font is shipped without its licence');
+  });
+
+  it('and the icons are drawn here rather than pulled from a set', () => {
+    const html = web.find((one) => one.file === 'index.html').text;
+
+    assert.ok((html.match(/class="glyph"/g) ?? []).length >= 3, 'the panels have lost their glyphs');
+  });
+});
+
 describe('what the service will accept', () => {
   it('is only a transport the module lists', () => {
     // The route checks WHAT_THERE_IS before its own map, so a transport added

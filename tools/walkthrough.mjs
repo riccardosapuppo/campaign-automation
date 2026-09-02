@@ -77,6 +77,31 @@ async function run() {
   say('and the list can say, for every one of them, whether they may be written to');
   const list = await ask('GET', '/api/contacts');
 
+  /**
+   * Before the counts: is the fixture still saying what it was written to say?
+   *
+   * The sample list has consents dated in 2026 and the rules treat one as stale
+   * after 730 days, so on a morning in early 2028 those consents go stale on
+   * their own and every count below moves by one. Nothing would be broken — the
+   * program would be exactly right — but this file would start failing, and the
+   * failure would point at the service instead of at the calendar.
+   *
+   * So it is said here, first, in words that tell whoever hits it what to do.
+   */
+  const freshest = Date.parse('2026-08-12T00:00:00.000Z'); // the newest consent in samples/contacts.csv
+  const daysSince = Math.floor((Date.now() - freshest) / 86_400_000);
+
+  is(
+    `the sample list has not aged out (its newest consent is ${daysSince} days old, and 730 is the limit)`,
+    daysSince < 730,
+    true
+  );
+
+  if (daysSince >= 730) {
+    console.log('        samples/contacts.csv needs newer dates: every consent in it has gone stale with age,');
+    console.log('        so the counts below are about a fixture that has expired, not about a defect.');
+  }
+
   is('six may be', list.allowed.length, 6);
   is('four may not', list.refused.length, 4);
 
