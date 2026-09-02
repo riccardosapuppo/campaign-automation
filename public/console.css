@@ -1,0 +1,288 @@
+/*
+ * One screen, and it is organised around the thing the project is for: the
+ * answer and the reason next to each other on every row.
+ *
+ * Addresses, reasons and template placeholders are set in a monospace face
+ * throughout. They are data somebody reads character by character — an address
+ * with a typo in it and an address without one look identical in a
+ * proportional face, and that is the mistake this whole tool exists to avoid.
+ */
+
+:root {
+  --ink: #101a2e;
+  --ink-soft: #4a5769;
+  --ink-faint: #7d8b9d;
+  --paper: #eef1f5;
+  --card: #ffffff;
+  --line: #d7dee7;
+
+  --may: #1d6b4f;         /* may be written to */
+  --may-soft: #e4f2eb;
+  --held: #a5620a;        /* held back — the colour of the whole point */
+  --held-soft: #fdf0dc;
+  --signal: #f2a33c;
+
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, "Segoe UI", Inter, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 0 3rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.55 var(--sans);
+}
+
+/* ------------------------------------------------------------------- top */
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem 2rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 1.6rem clamp(1rem, 4vw, 3rem) 1.4rem;
+  background: var(--ink);
+  color: #eaeff6;
+  border-bottom: 3px solid var(--signal);
+}
+
+.wordmark { display: flex; gap: 0.8rem; align-items: flex-start; }
+.wordmark img { margin-top: 0.15rem; border-radius: 6px; }
+
+.top h1 { margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; }
+.top p { margin: 0.15rem 0 0; color: #a8b6c9; max-width: 52ch; font-size: 0.9rem; }
+
+.tally { display: flex; gap: 0.55rem; margin: 0; }
+.tally div {
+  min-width: 7.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #1b2740;
+  border: 1px solid #2b3a56;
+  border-radius: 9px;
+}
+.tally dt { margin: 0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: #94a4ba; }
+.tally dd { margin: 0.15rem 0 0; font: 620 1.5rem/1 var(--sans); font-variant-numeric: tabular-nums; }
+.tally .may dd { color: #6fd3a5; }
+.tally .held dd { color: var(--signal); }
+
+/* ---------------------------------------------------------------- panels */
+
+main {
+  display: grid;
+  gap: 1.1rem;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-items: start;
+  padding: 1.4rem clamp(1rem, 4vw, 3rem) 0;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem 1.2rem;
+}
+
+#panel-list { grid-column: 1; grid-row: 1; }
+#panel-reply { grid-column: 2; grid-row: 1; }
+#panel-campaign { grid-column: 1 / -1; }
+
+.panel-head h2 { margin: 0; font-size: 1.05rem; }
+.panel-head p { margin: 0.25rem 0 1rem; color: var(--ink-soft); max-width: 68ch; font-size: 0.88rem; }
+
+h3 { margin: 1.1rem 0 0.4rem; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); }
+
+/* --------------------------------------------------------------- doing */
+
+.doing { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.9rem; }
+
+button,
+.file span {
+  font: 500 0.88rem/1 var(--sans);
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--ink);
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled), .file:hover span { background: #1e2c47; }
+button:disabled { background: #b9c3d0; border-color: #b9c3d0; cursor: not-allowed; }
+button.quiet { background: transparent; color: var(--ink); border-color: var(--line); }
+button.quiet:hover { background: #f1f4f8; }
+
+:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
+
+.file span { display: inline-block; }
+
+input[type="text"], input:not([type]), select, textarea {
+  font: 0.88rem/1.4 var(--sans);
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+  color: var(--ink);
+  min-width: 0;
+}
+textarea, #c-subject, #reply-text { font-family: var(--mono); font-size: 0.82rem; }
+
+.said { font-size: 0.84rem; color: var(--ink-soft); }
+
+/* --------------------------------------------------------------- tables */
+
+.scrolls { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 2px solid var(--line);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #edf1f5; vertical-align: top; }
+td.address, td.state { font-family: var(--mono); font-size: 0.8rem; }
+.right, td.right { text-align: right; white-space: nowrap; }
+tr.empty td { color: var(--ink-faint); padding: 1.2rem 0.6rem; }
+
+.answer {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font: 600 0.74rem/1.5 var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.answer.yes { background: var(--may-soft); color: var(--may); }
+.answer.no { background: var(--held-soft); color: var(--held); }
+
+td.because { color: var(--ink-soft); }
+
+/*
+ * The reason gets the width, because the reason is what the page is for.
+ *
+ * Left to itself the browser gives every column what its widest cell wants,
+ * and a column of monospace addresses always wants more than a column of
+ * prose — so the sentence explaining why somebody was held back ends up in a
+ * four-word-wide gutter while the address it belongs to sits in a comfortable
+ * one. Fixed proportions, and the addresses can wrap instead.
+ */
+#contacts { table-layout: fixed; }
+#contacts th:nth-child(1) { width: 26%; }
+#contacts th:nth-child(2) { width: 20%; }
+#contacts th:nth-child(3) { width: 35%; }
+#contacts th:nth-child(4) { width: 19%; }
+#contacts td.address { overflow-wrap: anywhere; }
+
+/* The name belongs under the address, not beside it: they are the same fact. */
+.their-name {
+  display: block;
+  margin-top: 0.1rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+/* The two things you can do about a person wrap onto two lines rather than
+   running off the edge of a fixed column. */
+#contacts td.right { white-space: normal; }
+
+button.link {
+  background: none;
+  border: none;
+  padding: 0.15rem 0.2rem;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  font-size: 0.82rem;
+}
+button.link:hover:not(:disabled) { background: none; color: var(--ink); }
+
+/* ------------------------------------------------------------ the reply */
+
+#reply-form { flex-direction: column; align-items: stretch; }
+#reply-form input { width: 100%; }
+#reply-form button { align-self: flex-start; }
+
+.verdict { margin: 0.2rem 0 0.8rem; font-size: 0.88rem; min-height: 1.4rem; }
+.verdict.stop { color: var(--held); font-weight: 600; }
+.verdict.not { color: var(--may); }
+
+.try { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.try button {
+  background: #f1f4f8;
+  color: var(--ink-soft);
+  border-color: var(--line);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  padding: 0.35rem 0.55rem;
+}
+.try button:hover { background: #e5eaf1; color: var(--ink); }
+
+/* --------------------------------------------------------- the campaign */
+
+.fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; align-items: end; }
+.fields label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--ink-soft); }
+.fields .wide { grid-column: 1 / -1; }
+.fields button { justify-self: start; }
+
+.steps ol { margin: 1rem 0 0; padding-left: 1.1rem; }
+.steps li { margin-bottom: 0.7rem; }
+.steps li > * { vertical-align: middle; }
+.steps label { font-size: 0.85rem; color: var(--ink-soft); }
+.steps select { margin: 0 0.4rem; }
+
+.held-back { margin-top: 1rem; padding: 0.8rem 1rem; background: var(--held-soft); border-radius: 10px; }
+.held-back h3 { margin-top: 0; color: var(--held); }
+.held-back ul { margin: 0; padding-left: 1.1rem; font-size: 0.86rem; color: #6d4408; }
+.held-back li { margin-bottom: 0.2rem; }
+.held-back code { font-family: var(--mono); font-size: 0.8rem; }
+
+.columns { margin-bottom: 0.9rem; }
+.columns ul { margin: 0; padding-left: 1.1rem; font-size: 0.84rem; color: var(--ink-soft); }
+.columns b { font-family: var(--mono); font-size: 0.8rem; color: var(--ink); }
+
+/* ----------------------------------------------------------- one person */
+
+dialog {
+  width: min(46rem, 92vw);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.2rem 1.4rem 1.4rem;
+  color: var(--ink);
+}
+dialog::backdrop { background: rgba(16, 26, 46, 0.45); }
+dialog h2 { margin: 0 0 0.8rem; font-family: var(--mono); font-size: 1rem; }
+.close { position: absolute; top: 0.7rem; right: 0.8rem; background: none; border: none; color: var(--ink-faint); font-size: 1rem; }
+.close:hover { background: none; color: var(--ink); }
+
+.trail { list-style: none; margin: 0 0 1rem; padding: 0; }
+.trail li { padding: 0.45rem 0 0.45rem 0.9rem; border-left: 3px solid var(--line); font-size: 0.86rem; }
+.trail li.basis { border-left-color: var(--may); }
+.trail li.suppression { border-left-color: var(--held); }
+.trail li.message { border-left-color: var(--line); color: var(--ink-soft); }
+.trail time { display: block; font-family: var(--mono); font-size: 0.74rem; color: var(--ink-faint); }
+
+footer { padding: 1.4rem clamp(1rem, 4vw, 3rem) 0; }
+footer p { margin: 0; color: var(--ink-faint); font-size: 0.82rem; max-width: 70ch; }
+footer code { font-family: var(--mono); }
+
+/* ------------------------------------------------------------ narrower */
+
+@media (max-width: 60rem) {
+  main { grid-template-columns: minmax(0, 1fr); }
+  #panel-list, #panel-reply, #panel-campaign { grid-column: 1; grid-row: auto; }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .tally div { min-width: 6rem; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel { transition: border-color 0.15s ease; }
+}

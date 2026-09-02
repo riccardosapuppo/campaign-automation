@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Two lines of a list, the second one struck out">
+  <rect width="32" height="32" rx="7" fill="#101a2e" />
+  <!-- One that is going out. -->
+  <rect x="6" y="8" width="20" height="6" rx="3" fill="#e8edf4" />
+  <!-- One that is not, and the reason it is not.
+
+       Two lines rather than three: at sixteen pixels — the only size a tab
+       icon is ever seen at — three bars are a pixel and a half each and blur
+       into a grey block, which `npm run check:mark` measures and refuses. -->
+  <rect x="6" y="18" width="20" height="6" rx="3" fill="#59677e" />
+  <path d="M3.5 25.5 L28.5 16.5" stroke="#f2a33c" stroke-width="3.4" stroke-linecap="round" />
+</svg>

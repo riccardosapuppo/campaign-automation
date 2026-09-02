@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Campaigns — who may be written to</title>
+    <link rel="icon" href="mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="console.css" />
+  </head>
+
+  <body>
+    <header class="top">
+      <div class="wordmark">
+        <img src="mark.svg" alt="" width="26" height="26" />
+        <div>
+          <h1>Campaigns</h1>
+          <p>Nothing goes out to anybody who did not agree, or who asked you to stop.</p>
+        </div>
+      </div>
+
+      <dl class="tally" id="tally" aria-live="polite">
+        <div><dt>on the list</dt><dd id="tally-contacts">—</dd></div>
+        <div class="may"><dt>may be written to</dt><dd id="tally-allowed">—</dd></div>
+        <div class="held"><dt>held back</dt><dd id="tally-refused">—</dd></div>
+      </dl>
+    </header>
+
+    <main>
+      <!-- 1. The list ---------------------------------------------------- -->
+      <section class="panel" id="panel-list">
+        <div class="panel-head">
+          <h2>The list</h2>
+          <p>
+            Everybody on it, and for each of them the answer and the reason.
+            The reason is the point: a tool that only counts cannot answer
+            <em>why did this person not get it</em>.
+          </p>
+        </div>
+
+        <div class="doing">
+          <label class="file">
+            <input type="file" id="csv" accept=".csv,text/csv" hidden />
+            <span>Import a spreadsheet…</span>
+          </label>
+          <button type="button" id="load-sample" class="quiet">Use the sample list</button>
+          <span class="said" id="import-said"></span>
+        </div>
+
+        <div class="columns" id="columns" hidden>
+          <h3>What it made of the columns</h3>
+          <ul id="columns-list"></ul>
+        </div>
+
+        <div class="scrolls">
+          <table id="contacts">
+            <thead>
+              <tr>
+                <th>who</th>
+                <th>answer</th>
+                <th>because</th>
+                <th class="right">what you can do</th>
+              </tr>
+            </thead>
+            <tbody id="contacts-body">
+              <tr class="empty"><td colspan="4">Nobody yet. Import a spreadsheet, or use the sample list.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 2. A reply ----------------------------------------------------- -->
+      <section class="panel narrow" id="panel-reply">
+        <div class="panel-head">
+          <h2>A reply came in</h2>
+          <p>
+            This is how an unsubscribe actually arrives: somebody replies to the
+            message. Type what they wrote and see what it is read as — including
+            the ones that must <strong>not</strong> be read as a stop.
+          </p>
+        </div>
+
+        <form class="doing" id="reply-form">
+          <input type="text" id="reply-address" placeholder="who replied" list="known" required />
+          <input type="text" id="reply-text" placeholder="what they wrote" required />
+          <button type="submit">See what it is read as</button>
+        </form>
+
+        <datalist id="known"></datalist>
+
+        <p class="verdict" id="reply-said"></p>
+
+        <ul class="try">
+          <li><button type="button" data-try="STOP">STOP</button></li>
+          <li><button type="button" data-try="please take me off this list">take me off this list</button></li>
+          <li><button type="button" data-try="disiscrivimi per favore">disiscrivimi</button></li>
+          <li><button type="button" data-try="We are non-stop until Friday, can you deliver then?">…non-stop until Friday…</button></li>
+        </ul>
+      </section>
+
+      <!-- 3. The campaign ------------------------------------------------ -->
+      <section class="panel" id="panel-campaign">
+        <div class="panel-head">
+          <h2>A campaign</h2>
+          <p>
+            Two steps, and the first one sends nothing. Work out who may be
+            written to, read the answer, and only then choose how it goes.
+          </p>
+        </div>
+
+        <form class="fields" id="campaign-form">
+          <label>Name <input id="c-name" value="March offer" required /></label>
+          <label>From <input id="c-from-address" value="hello@example.invalid" required /></label>
+          <label>Called <input id="c-from-name" value="Harbour Supplies" /></label>
+          <label class="wide">Subject <input id="c-subject" value="{{name | there}}, your March prices" required /></label>
+          <label class="wide">
+            Body
+            <textarea id="c-body" rows="5" required>Hello {{name | there}},
+
+Your prices for March are ready. Your account at {{company}} is unchanged.
+
+To stop hearing from us, reply STOP and we will not write again.</textarea>
+          </label>
+          <button type="submit">Make the campaign</button>
+        </form>
+
+        <div class="steps" id="steps" hidden>
+          <ol>
+            <li id="step-decide">
+              <button type="button" id="do-decide">Work out who may be written to</button>
+              <span class="said" id="decide-said">sends nothing</span>
+            </li>
+            <li id="step-send">
+              <label>
+                and then send it
+                <select id="transport">
+                  <option value="dry-run">as a dry run — renders everything, sends nothing</option>
+                  <option value="file">to a folder — one file each, for somebody to read</option>
+                  <option value="smtp">over SMTP — to the sink on 127.0.0.1:3609</option>
+                </select>
+              </label>
+              <button type="button" id="do-send" disabled>Send</button>
+              <span class="said" id="send-said"></span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="held-back" id="held-back" hidden>
+          <h3>Held back, and why</h3>
+          <ul id="held-back-list"></ul>
+        </div>
+
+        <div class="scrolls" id="messages-wrap" hidden>
+          <table id="messages">
+            <thead>
+              <tr><th>address</th><th>state</th><th>because</th><th>subject</th></tr>
+            </thead>
+            <tbody id="messages-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- One person's whole history --------------------------------------- -->
+    <dialog id="history">
+      <form method="dialog"><button class="close" aria-label="Close">✕</button></form>
+      <h2 id="history-address">—</h2>
+      <div id="history-body"></div>
+    </dialog>
+
+    <footer>
+      <p>
+        Everything is on this machine: the database is a file under <code>data/</code>, and
+        SMTP goes to a sink on localhost that delivers nowhere.
+      </p>
+    </footer>
+
+    <script type="module" src="console.js"></script>
+  </body>
+</html>
