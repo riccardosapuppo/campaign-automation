@@ -21,6 +21,47 @@ without answering it.
 
 ---
 
+## Before you start
+
+**Node 24 or newer**, and nothing else, to run it.
+
+That number is not a guess and it is not "the version I happened to have". The
+database is [`node:sqlite`](https://nodejs.org/api/sqlite.html), which is part
+of Node rather than a dependency — but only from a certain version. This README
+said **22.5** until continuous integration ran the project on 22.5 and it died
+inside the module loader: on Node 22 `node:sqlite` exists only behind
+`--experimental-sqlite`, which is not the same as existing. A CI job now runs it
+on 22.5 on purpose and asserts that what a person sees is a sentence saying
+which version is needed, so the number above cannot drift back into a claim.
+
+`npm install` refuses on an older Node rather than installing happily and
+failing later — there is nothing npm could install that would fix it.
+
+| to run | you need | why |
+| --- | --- | --- |
+| the service and the console | Node ≥ 24, npm | `node:sqlite`, unflagged |
+| `npm test`, `walkthrough`, `build` | the same | nothing else |
+| `npm run check:smtp` | **Docker** | it sends to Mailpit, a mail catcher nobody here wrote |
+| `npm run check:screen`, `check:mark`, `screenshots` | **Microsoft Edge** (or any Chromium already installed) | they drive the browser on this machine rather than downloading one |
+
+**Measured, not estimated:** `npm install` fetches 68 packages and writes
+**17 MB** into `node_modules`; the repository itself is **2.3 MB** including the
+screenshots. `npm run check:smtp` pulls `axllent/mailpit:v1.21` once, which is
+**12 MB**. Nothing else touches the network, ever.
+
+**What you do *not* need:** no account, no API key, no mail provider, no
+database server, no SMTP relay, no cloud anything. There is no configuration
+file to fill in. Every address in this repository ends in `.invalid`, which
+[RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) reserves and no mail server
+will ever deliver to — a CI step fails the build if one appears that does not.
+
+**To put the machine back:** delete `node_modules/` and `data/` (the whole
+database is a file in there), and `docker image rm axllent/mailpit:v1.21` if you
+ran the SMTP check. Nothing is installed globally, no ports are left listening,
+and no service is registered.
+
+---
+
 ## Run it
 
 Two terminals, and nothing else. No account, no provider, no API key, and no
@@ -261,7 +302,7 @@ conversation is the part that goes wrong: multi-line replies, dot-stuffing,
 mid-message. A service whose sending is a black box is a service nobody can
 debug when a server starts refusing things at four in the afternoon.
 
-Requires **Node 22.5 or newer**, for `node:sqlite`.
+Requires **Node 24 or newer**, for `node:sqlite` — see [Before you start](#before-you-start).
 
 ![What the sink caught](docs/the-sink.png)
 

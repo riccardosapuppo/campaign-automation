@@ -5,21 +5,31 @@ on:
   pull_request:
   workflow_dispatch:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  # The layers that need nothing but Node. Kept separate from the browser and
-  # Docker ones so a failure says which layer failed without anybody reading a
-  # log.
+  # The layers that need nothing but Node. Kept separate from the Docker one so
+  # a failure says which layer failed without anybody reading a log.
+  #
+  # Every job here has a timeout. A job that hangs is worse than a job that
+  # fails: it stays amber for six hours and nobody looks at it.
   rules-and-service:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          # node:sqlite. Anything older cannot run this at all, which is worth
-          # finding out here rather than on somebody's machine.
-          node-version: '22.5'
+          # The version this is actually known to run on. It said 22.5 until
+          # this workflow ran it on 22.5 and proved otherwise: `node:sqlite`
+          # exists there only behind --experimental-sqlite, which is not the
+          # same as existing. The job below holds the other end of that
+          # boundary, so this number cannot quietly go back to being a guess.
+          node-version: '24'
 
       - run: npm ci
 
@@ -47,16 +57,66 @@ jobs:
           fi
           echo "every address is unreachable by construction"
 
+  # The declared minimum version, proved from the other side.
+  #
+  # "Needs Node 24" in a README is a claim. This makes it a fact: it runs the
+  # program on a version that cannot work and asserts that what a person sees is
+  # the sentence explaining why — not ERR_UNKNOWN_BUILTIN_MODULE thrown several
+  # frames inside the module loader, which is what they saw before.
+  refuses-politely-on-an-old-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.5'
+
+      # --engine-strict=false on purpose. npm's refusal is the first line of
+      # defence; this job is about the second one — what happens to somebody who
+      # gets past it, with a lockfile from a colleague or an older npm.
+      - run: npm ci --engine-strict=false
+
+      - name: it says what is missing instead of falling over
+        run: |
+          set +e
+          out=$(node src/index.js 2>&1)
+          code=$?
+          set -e
+
+          echo "$out"
+
+          if [ "$code" -eq 0 ]; then
+            echo "FAIL: it started on a Node that cannot run it"
+            exit 1
+          fi
+
+          echo "$out" | grep -q "needs Node 24 or newer" \
+            || { echo "FAIL: the refusal does not say which version is needed"; exit 1; }
+
+          echo "$out" | grep -q "node:sqlite" \
+            || { echo "FAIL: the refusal does not say what is missing"; exit 1; }
+
+          if echo "$out" | grep -q "ERR_UNKNOWN_BUILTIN_MODULE"; then
+            echo "FAIL: it is still showing the raw loader error"
+            exit 1
+          fi
+
+          echo "it declined, and said what was missing"
+
   # Against somebody else's SMTP server, because the sink and the client here
   # were written together and would agree about the same mistake.
   against-a-real-server:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.5'
+          node-version: '24'
 
       - run: npm ci
       - run: npm run check:smtp
@@ -68,4 +128,3 @@ jobs:
 # Making them pass in CI would mean pulling several hundred megabytes of
 # Chromium on every push to check an icon. They are run before every commit
 # instead, and they say plainly when they cannot run.
-

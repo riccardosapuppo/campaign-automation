@@ -15,9 +15,24 @@
 
 import fs from 'node:fs';
 
-import { store } from './store/db.js';
-import { api } from './http/api.js';
-import { read } from './import/csv.js';
+import { orStop } from './needs.js';
+
+/**
+ * Before anything else — and this is why the three below are dynamic imports.
+ *
+ * `store/db.js` imports `node:sqlite` at the top, so on a Node that has not got
+ * it the failure happens inside the module loader before a single line of this
+ * file runs. A static import of it, up there with `fs`, would make the check
+ * below unreachable: the program would still die with a stack trace from
+ * somewhere in `node:internal/modules`, which tells a reader nothing.
+ *
+ * This is the only arrangement in which the program can explain itself.
+ */
+await orStop();
+
+const { store } = await import('./store/db.js');
+const { api } = await import('./http/api.js');
+const { read } = await import('./import/csv.js');
 
 const PORT = Number(process.env.PORT ?? 3608);
 const HOST = process.env.HOST ?? '127.0.0.1';
