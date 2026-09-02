@@ -37,7 +37,7 @@ let chromium;
 try {
   ({ chromium } = createRequire(import.meta.url)('playwright-core'));
 } catch {
-  console.error('playwright-core non e installato qui:  npm install --save-dev playwright-core');
+  console.error('playwright-core is not installed here:  npm install --save-dev playwright-core');
   process.exit(2);
 }
 

@@ -287,5 +287,5 @@ footer code { font-family: var(--mono); }
   .panel { transition: border-color 0.15s ease; }
 }
 
-/* Chi l'ha scritto, dove si vede la versione. */
+/* Who wrote it, where the version is visible. */
 footer .by { margin-top: 0.4rem; color: var(--ink-faint); font-size: 0.78rem; }

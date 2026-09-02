@@ -56,7 +56,7 @@ try {
   fs.rmSync(folder, { recursive: true, force: true });
 }
 
-console.log(bad === 0 ? '\nparte tutto\n' : '\nqualcosa non parte\n');
+console.log(bad === 0 ? '\nAll of it starts.\n' : '\nSomething does not start.\n');
 process.exitCode = bad === 0 ? 0 : 1;
 
 // ---------------------------------------------------------------------------
