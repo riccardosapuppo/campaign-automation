@@ -11,6 +11,7 @@
  * — which does not contain the word "version" anywhere.
  */
 
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
@@ -73,5 +74,29 @@ describe('what it needs to run', () => {
       }),
       /something else entirely/
     );
+  });
+});
+
+describe('the way in', () => {
+  it('is plain JavaScript, so a Node too old to run this can still read it', () => {
+    // The point of `start.js`: everything under src/ is TypeScript, which Node
+    // only runs from 24. On 22 the program cannot be parsed, so the careful
+    // refusal in needs.ts never gets to speak. A guard has to be readable by
+    // the runtime it guards against.
+    const source = fs.readFileSync(new URL('../start.js', import.meta.url), 'utf8');
+
+    assert.doesNotMatch(source, /:\s*(string|number|boolean)/, 'a type annotation would defeat the point');
+    assert.match(source, /await import\('\.\/src\/index\.ts'\)/, 'and it does hand over to the real program');
+  });
+
+  it('and the version it names is the version the code needs', () => {
+    // Two places say 24, because the guard cannot import the constant: doing so
+    // would load TypeScript, which is the thing it is guarding against. So they
+    // are compared here instead.
+    const source = fs.readFileSync(new URL('../start.js', import.meta.url), 'utf8');
+    const said = source.match(/const NEEDS = (\d+);/);
+
+    assert.ok(said, 'start.js does not say which version it wants');
+    assert.equal(Number(said[1]), NEEDS_NODE);
   });
 });

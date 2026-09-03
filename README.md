@@ -270,7 +270,7 @@ from the same spreadsheet, arrive with no history, and are written to again.
 Five layers, and each one has caught something the others could not.
 
 ```bash
-npm test              # 126  the rules, the importer, the template, the store
+npm test              # 128  the rules, the importer, the template, the store
 npm run typecheck    #     the types, and that Node still runs this without a build
 npm run walkthrough   #  36  the whole story through HTTP, against a live service
 npm run check:screen  #  31  the console, driven with a browser

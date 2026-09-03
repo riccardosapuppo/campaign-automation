@@ -104,7 +104,7 @@ jobs:
       - name: it says what is missing instead of falling over
         run: |
           set +e
-          out=$(node src/index.ts 2>&1)
+          out=$(node start.js 2>&1)
           code=$?
           set -e
 
