@@ -50,10 +50,30 @@ export const WHAT_THERE_IS = ['dry-run', 'file', 'smtp'];
  * looked at should not be able to go out because somebody pressed the obvious
  * button.
  */
-export function dryRun({ onMessage = () => {} } = {}) {
+/** One message, as every transport receives it. */
+export type Mail = {
+  to: string;
+  from: { name?: string | null; address: string };
+  subject: string;
+  body: string;
+  at?: Date;
+};
+export type Transport = { send(mail: Mail): Promise<unknown> | unknown; name?: string };
+
+/** The half of SMTP this speaks: say a line, expect a code, close. */
+export type Reply = { code: number; line: string };
+
+export type Talk = {
+  say(line: string): Promise<unknown>;
+  write(text: string): Promise<unknown>;
+  expect(code: number, options?: { orFail?: boolean }): Promise<{ ok: boolean } & Reply>;
+  close(): void;
+};
+
+export function dryRun({ onMessage = () => {} }: { onMessage?: (mail: Mail) => void } = {}) {
   return {
     name: 'dry-run',
-    async send(message) {
+    async send(message: Mail) {
       onMessage(message);
       return { why: 'nothing was sent: this is a dry run' };
     },
@@ -66,14 +86,14 @@ export function dryRun({ onMessage = () => {} } = {}) {
  * Which is what an approval step looks like when it is real rather than a
  * checkbox: the messages exist, as files, and a person opens a few.
  */
-export function toFolder({ folder, io = fs }) {
+export function toFolder({ folder, io = fs }: { folder: string; io?: typeof fs }) {
   io.mkdirSync(folder, { recursive: true });
 
   let n = 0;
 
   return {
     name: 'file',
-    async send(message) {
+    async send(message: Mail) {
       n += 1;
       const safe = message.to.replace(/[^a-zA-Z0-9._@-]/g, '_');
       const file = `${String(n).padStart(4, '0')}-${safe}.eml`;
@@ -104,11 +124,11 @@ export function toFolder({ folder, io = fs }) {
  *   - **A refusal at RCPT is not a failure of the connection.** One address the
  *     server will not take must not lose the others.
  */
-export function smtp({ host = '127.0.0.1', port = 3609, from = null, timeoutMs = 10_000 } = {}) {
+export function smtp({ host = '127.0.0.1', port = 3609, from = null as string | null, timeoutMs = 10_000 } = {}) {
   return {
     name: 'smtp',
 
-    async send(message) {
+    async send(message: Mail) {
       const talk = await connect({ host, port, timeoutMs });
 
       try {
@@ -117,7 +137,7 @@ export function smtp({ host = '127.0.0.1', port = 3609, from = null, timeoutMs =
         await talk.say('EHLO campaign.invalid');
         await talk.expect(250);
 
-        await talk.say(`MAIL FROM:<${(from ?? message.from.address).trim()}>`);
+        await talk.say(`MAIL FROM:<${String(from ?? message.from.address).trim()}>`);
         await talk.expect(250);
 
         await talk.say(`RCPT TO:<${message.to.trim()}>`);
@@ -148,14 +168,14 @@ export function smtp({ host = '127.0.0.1', port = 3609, from = null, timeoutMs =
   };
 }
 
-function connect({ host, port, timeoutMs }) {
-  return new Promise((resolve, reject) => {
+function connect({ host, port, timeoutMs }: { host: string; port: number; timeoutMs: number }): Promise<Talk> {
+  return new Promise<Talk>((resolve, reject) => {
     const socket = net.createConnection({ host, port });
     socket.setEncoding('utf8');
     socket.setTimeout(timeoutMs);
 
     let buffer = '';
-    let waiting = null;
+    let waiting: { resolve: (r: Reply) => void; reject: (e: Error) => void } | null = null;
 
     const settle = () => {
       if (!waiting) return;
@@ -199,7 +219,7 @@ function connect({ host, port, timeoutMs }) {
       waiting = null;
     });
 
-    const read = () =>
+    const read = (): Promise<Reply> =>
       new Promise((done, fail) => {
         waiting = { resolve: done, reject: fail };
         settle();
@@ -207,10 +227,10 @@ function connect({ host, port, timeoutMs }) {
 
     socket.once('connect', () =>
       resolve({
-        say: (line) => new Promise((done) => socket.write(`${line}\r\n`, done)),
-        write: (text) => new Promise((done) => socket.write(text, done)),
+        say: (line: string) => new Promise((done) => socket.write(`${line}\r\n`, done)),
+        write: (text: string) => new Promise((done) => socket.write(text, done)),
 
-        async expect(code, { orFail = false } = {}) {
+        async expect(code: number, { orFail = false }: { orFail?: boolean } = {}) {
           const reply = await read();
 
           if (reply.code === code || (code === 250 && reply.code === 251)) {
@@ -233,7 +253,7 @@ function connect({ host, port, timeoutMs }) {
  * Dot-stuffing happens here, once, on the way out — not in the socket code,
  * where it would be applied to the commands as well.
  */
-export function asMail({ to, from, subject, body, at = new Date() }) {
+export function asMail({ to, from, subject, body, at = new Date() }: Mail): string {
   const name = from.name ? `${asHeader(from.name)} ` : '';
 
   const headers = [
@@ -270,7 +290,7 @@ export function asMail({ to, from, subject, body, at = new Date() }) {
  * Anything already ASCII is left exactly as it was, so the common case stays
  * readable to anybody looking at the raw message.
  */
-export function asHeader(text) {
+export function asHeader(text: unknown): string {
   const said = String(text ?? '');
   if (!/[^ -~]/.test(said)) return said;
 

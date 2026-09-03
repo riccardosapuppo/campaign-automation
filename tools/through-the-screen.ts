@@ -21,6 +21,8 @@
  * them down again.
  */
 
+import type { ChildProcess } from 'node:child_process';
+
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
@@ -28,14 +30,14 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
-import { matchesTheReadme } from './what-the-readme-claims.mjs';
+import { matchesTheReadme } from './what-the-readme-claims.ts';
 
 const PORT = 3638;
 const SINK = 3639;
 const SINK_WEB = 3640;
 const show = process.argv.includes('--show');
 
-let chromium;
+let chromium: typeof import('playwright-core').chromium;
 try {
   ({ chromium } = createRequire(import.meta.url)('playwright-core'));
 } catch {
@@ -45,7 +47,7 @@ try {
 }
 
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'campaigns-screen-'));
-const started = [];
+const started: ChildProcess[] = [];
 
 let checks = 0;
 let bad = 0;
@@ -66,7 +68,7 @@ process.exitCode = bad === 0 ? 0 : 1;
 
 async function run() {
   await start(['sink/smtp.js', String(SINK)], { SINK_WEB_PORT: String(SINK_WEB) }, SINK);
-  await start(['src/index.js'], { PORT: String(PORT), DB: path.join(folder, 'screen.db'), SMTP_PORT: String(SINK) }, PORT);
+  await start(['src/index.ts'], { PORT: String(PORT), DB: path.join(folder, 'screen.db'), SMTP_PORT: String(SINK) }, PORT);
 
   const browser = await chromium.launch({ channel: 'msedge', headless: !show });
   const page = await browser.newPage({ viewport: { width: 1400, height: 1100 }, reducedMotion: 'reduce' });
@@ -74,9 +76,9 @@ async function run() {
   // Anything the page throws is a failure of this check, even if every
   // assertion below still passes — a screen that works while quietly throwing
   // is a screen that stops working on the next browser.
-  const thrown = [];
-  page.on('pageerror', (error) => thrown.push(`threw: ${error.message}`));
-  page.on('console', (message) => {
+  const thrown: string[] = [];
+  page.on('pageerror', (error: Error) => thrown.push(`threw: ${(error instanceof Error ? error.message : String(error))}`));
+  page.on('console', (message: { type(): string; text(): string }) => {
     if (message.type() === 'error') thrown.push(message.text());
   });
 
@@ -122,14 +124,14 @@ async function run() {
     const before = await text(page, '#tally-allowed');
 
     await page.getByRole('button', { name: '…non-stop until Friday…' }).click();
-    await page.waitForFunction(() => document.getElementById('reply-said').textContent.trim().length > 0);
+    await page.waitForFunction(() => (document.getElementById('reply-said') as HTMLElement & Record<string, any>).textContent.trim().length > 0);
 
     has('the screen says it is not an unsubscribe', await text(page, '#reply-said'), 'Not an unsubscribe');
     is('and nobody was removed', await text(page, '#tally-allowed'), before);
 
     say('and a reply that is one');
     await page.getByRole('button', { name: 'take me off this list' }).click();
-    await page.waitForFunction((was) => document.getElementById('tally-allowed').textContent !== was, before);
+    await page.waitForFunction((was) => (document.getElementById('tally-allowed') as HTMLElement & Record<string, any>).textContent !== was, before);
 
     has('the screen says it is an unsubscribe', await text(page, '#reply-said'), 'Read as an unsubscribe');
     is('and one fewer may be written to', Number(await text(page, '#tally-allowed')), Number(before) - 1);
@@ -151,7 +153,7 @@ async function run() {
 
     say('working out who may be written to sends nothing');
     await page.getByRole('button', { name: 'Work out who may be written to' }).click();
-    await page.waitForFunction(() => !document.getElementById('do-send').disabled);
+    await page.waitForFunction(() => !(document.getElementById('do-send') as HTMLElement & Record<string, any>).disabled);
 
     has('the screen says how many would go', await text(page, '#decide-said'), 'may be written to');
     has('and that nothing did', await text(page, '#decide-said'), 'nothing was sent');
@@ -177,34 +179,34 @@ async function run() {
 
     // Wait until at least one has actually gone, so this stops something that
     // is running rather than something that has not begun.
-    await page.waitForFunction(() => Number(document.getElementById('sent-so-far').textContent) >= 1);
+    await page.waitForFunction(() => Number((document.getElementById('sent-so-far') as HTMLElement & Record<string, any>).textContent) >= 1);
 
     const wanted = Number(await text(page, '#to-send'));
     is('and it says how many are going', wanted > 1, true);
 
     await page.getByRole('button', { name: 'Stop sending' }).click();
-    await page.waitForFunction(() => !document.getElementById('sending').open, null, { timeout: 20_000 });
+    await page.waitForFunction(() => !(document.getElementById('sending') as HTMLElement & Record<string, any>).open, null, { timeout: 20_000 });
 
     has('the screen says it was stopped', await text(page, '#send-said'), 'stopped on request');
 
     const afterStop = await (await fetch(`http://127.0.0.1:${PORT}/api/campaigns/1`)).json();
-    const went = afterStop.messages.filter((one) => one.state === 'sent').length;
+    const went = afterStop.messages.filter((one: any) => one.state === 'sent').length;
 
     is('fewer went than were queued', went < wanted, true);
-    is('and the rest are still waiting, not lost', afterStop.messages.some((one) => one.state === 'allowed'), true);
+    is('and the rest are still waiting, not lost', afterStop.messages.some((one: any) => one.state === 'allowed'), true);
 
     // ---------------------------------------------------------- 7. sending
     say('and then the rest is sent, over SMTP, to a server that is really listening');
     await page.selectOption('#transport', 'smtp');
     await page.selectOption('#rate', '600');
     await page.getByRole('button', { name: 'Send' }).click();
-    await page.waitForFunction(() => /sent/.test(document.getElementById('send-said').textContent), null, { timeout: 20_000 });
+    await page.waitForFunction(() => /sent/.test((document.getElementById('send-said') as HTMLElement & Record<string, any>).textContent), null, { timeout: 20_000 });
 
     has('the screen says what happened', await text(page, '#send-said'), 'sent');
 
     const caught = await (await fetch(`http://127.0.0.1:${SINK_WEB}/messages`)).json();
     is('and a message really did arrive', caught.received.length > 0, true);
-    is('with nothing left unfilled in it', /\{\{/.test(caught.received.map((one) => one.body).join('')), false);
+    is('with nothing left unfilled in it', /\{\{/.test(caught.received.map((one: any) => one.body).join('')), false);
 
     // ------------------------------------------------------ 7. one person
     say('anybody on the list can be opened up');
@@ -239,15 +241,15 @@ async function run() {
  * helper; a `const` arrow down here is not hoisted, so the first call reaches
  * it before it exists and the whole check dies on line one of the assertions.
  */
-function text(page, selector) {
+function text(page: any, selector: any) {
   return page.locator(selector).innerText();
 }
 
-function say(what) {
+function say(what: string) {
   console.log(`\n  ${what}`);
 }
 
-function is(what, got, wanted) {
+function is(what: string, got: unknown, wanted?: unknown): void {
   checks += 1;
 
   if (got === wanted) {
@@ -259,10 +261,10 @@ function is(what, got, wanted) {
   console.log(`    NO    ${what}\n            wanted ${JSON.stringify(wanted)}, got ${JSON.stringify(got)}`);
 }
 
-function has(what, got, wanted) {
+function has(what: string, got: unknown, wanted?: unknown): void {
   checks += 1;
 
-  if (String(got ?? '').includes(wanted)) {
+  if (String(got ?? '').includes(String(wanted))) {
     console.log(`    ok    ${what}`);
     return;
   }
@@ -271,14 +273,14 @@ function has(what, got, wanted) {
   console.log(`    NO    ${what}\n            wanted something containing ${JSON.stringify(wanted)}, got ${JSON.stringify(got)}`);
 }
 
-async function start(argv, env, port) {
+async function start(argv: string[], env: NodeJS.ProcessEnv, port: number) {
   const child = spawn(process.execPath, argv, { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   started.push(child);
   child.stderr.on('data', (chunk) => process.stderr.write(chunk));
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await answering(port)) return child;
-    await new Promise((done) => setTimeout(done, 50));
+    await new Promise<void>((done) => setTimeout(done, 50));
   }
 
   throw new Error(`nothing came up on ${port}`);
@@ -292,10 +294,10 @@ async function start(argv, env, port) {
  * is a libuv assertion rather than a tidy exit — and it prints after the last
  * line of output, so it reads like the check itself failed.
  */
-function gone(child) {
+function gone(child: ChildProcess) {
   if (child.exitCode !== null) return null;
 
-  return new Promise((done) => {
+  return new Promise<void>((done) => {
     const impatient = setTimeout(() => {
       child.kill('SIGKILL');
       done();
@@ -310,8 +312,8 @@ function gone(child) {
   });
 }
 
-function answering(port) {
-  return new Promise((done) => {
+function answering(port: number) {
+  return new Promise<boolean>((done) => {
     const socket = net.createConnection({ host: '127.0.0.1', port });
     socket.once('connect', () => {
       socket.destroy();

@@ -18,14 +18,16 @@
  * between finding out during the review and finding out from a customer.
  */
 
+import type { Contact } from '../rules/permission.ts';
+
 const FIELD = /\{\{\s*([a-zA-Z0-9_.]+)\s*(?:\|\s*([^}]*?))?\s*\}\}/g;
 
 /**
  * @returns {{ text: string, missing: string[], used: string[] }}
  */
-export function fill(template, contact) {
-  const missing = [];
-  const used = [];
+export function fill(template: unknown, contact: Contact) {
+  const missing: string[] = [];
+  const used: string[] = [];
 
   const text = String(template ?? '').replace(FIELD, (whole, name, fallback) => {
     const value = look(contact, name);
@@ -64,25 +66,25 @@ export function fill(template, contact) {
  * line would put somebody's consent trail in an email, and `{{constructor}}`
  * is the older trick.
  */
-function look(contact, name) {
+function look(contact: Contact, name: string) {
   if (name === 'name' || name === 'address') return contact?.[name];
 
   if (name.startsWith('fields.')) {
     const key = name.slice('fields.'.length);
     // Own property only: `fields.toString` would otherwise be a function.
-    return Object.hasOwn(contact?.fields ?? {}, key) ? contact.fields[key] : undefined;
+    return Object.hasOwn(contact?.fields ?? {}, key) ? contact.fields?.[key] : undefined;
   }
 
   // A bare name is looked for in the imported fields, because that is what
   // somebody writing `{{company}}` means.
-  return Object.hasOwn(contact?.fields ?? {}, name) ? contact.fields[name] : undefined;
+  return Object.hasOwn(contact?.fields ?? {}, name) ? contact.fields?.[name] : undefined;
 }
 
 /**
  * Every field a template asks for, so a campaign can be checked against an
  * import before anybody presses anything.
  */
-export function fieldsIn(template) {
+export function fieldsIn(template: unknown): string[] {
   return [...new Set([...String(template ?? '').matchAll(FIELD)].map((one) => one[1]))];
 }
 
@@ -93,7 +95,7 @@ export function fieldsIn(template) {
  * have no company name" is something somebody reads while deciding, rather than
  * discovering afterwards.
  */
-export function whoIsMissingSomething(template, contacts) {
+export function whoIsMissingSomething(template: unknown, contacts: Contact[]) {
   const trouble = new Map();
 
   for (const contact of contacts) {

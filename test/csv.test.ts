@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { read, rows, whatTheColumnsAre, asDate } from '../src/import/csv.js';
+import { read, rows, whatTheColumnsAre, asDate } from '../src/import/csv.ts';
 
 describe('splitting the file up', () => {
   it('reads a plain comma-separated file', () => {
@@ -88,7 +88,7 @@ describe('working out what the columns are', () => {
     // with. An importer that silently decides column 4 is the consent date is
     // an importer nobody can correct.
     for (const column of whatTheColumnsAre(['Name', 'Whatever'])) {
-      assert.ok(column.why.length > 0, `${column.title} came back with no reason`);
+      assert.ok(column!.why.length > 0, `${column.title} came back with no reason`);
     }
   });
 });
@@ -117,20 +117,20 @@ describe('reading a whole file', () => {
     // failure this project is against.
     const dan = read(file).contacts.find((one) => one.address === 'dan@example.invalid');
 
-    assert.equal(dan.basis, null);
+    assert.equal(dan!.basis, null);
   });
 
   it('believes a spreadsheet that says somebody unsubscribed', () => {
     const eve = read(file).contacts.find((one) => one.address === 'eve@example.invalid');
 
-    assert.equal(eve.suppressed, true);
+    assert.equal(eve!.suppressed, true);
   });
 
   it('skips a row with no address, and says which one', () => {
     const said = read(file);
 
-    assert.equal(said.contacts.some((one) => one.name === 'No Address'), false);
-    assert.deepEqual(said.skipped, [{ line: 6, why: 'no address' }]);
+    assert.equal(said!.contacts.some((one) => one.name === 'No Address'), false);
+    assert.deepEqual(said!.skipped, [{ line: 6, why: 'no address' }]);
   });
 
   it('keeps the columns it could not name, so a template can use them', () => {
@@ -140,7 +140,7 @@ describe('reading a whole file', () => {
   it('says so when the file records nobody agreeing to anything', () => {
     const said = read('Name,Email\nAnna,anna@example.invalid\n');
 
-    assert.match(said.trouble.join(' '), /no column says when anybody agreed/);
+    assert.match(said!.trouble.join(' '), /no column says when anybody agreed/);
   });
 
   it('says so when there is no address column at all', () => {
@@ -153,11 +153,11 @@ describe('a date somebody typed', () => {
     // `Date.parse` reads it as the third of January, because it assumes the
     // one country that writes month first. Two months of drift is the
     // difference between a consent that is current and one that is stale.
-    assert.equal(asDate('01/03/2026').slice(0, 10), '2026-03-01');
+    assert.equal(String(asDate('01/03/2026')).slice(0, 10), '2026-03-01');
   });
 
   it('reads an ISO date as itself', () => {
-    assert.equal(asDate('2026-03-01').slice(0, 10), '2026-03-01');
+    assert.equal(String(asDate('2026-03-01')).slice(0, 10), '2026-03-01');
   });
 
   it('hands back anything it cannot read, rather than inventing a date', () => {

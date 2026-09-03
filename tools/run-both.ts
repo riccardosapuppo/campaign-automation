@@ -32,6 +32,8 @@
  *     label inside a record makes the whole log unparseable.
  */
 
+import type { ChildProcess } from 'node:child_process';
+
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +41,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
 
-const running = [];
+const running: Array<{ name: string; child: ChildProcess }> = [];
 let closing = false;
 
 const sink = start('the sink', path.join(root, 'sink', 'smtp.js'), []);
@@ -56,7 +58,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 // ---------------------------------------------------------------------------
 
-function start(name, script, argv) {
+function start(name: string, script: any, argv: string[]) {
   const child = spawn(process.execPath, [script, ...argv], {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -66,7 +68,7 @@ function start(name, script, argv) {
   label(child.stderr, name);
 
   child.on('error', (error) => {
-    console.error(`[${name}] would not start: ${error.message}`);
+    console.error(`[${name}] would not start: ${(error instanceof Error ? error.message : String(error))}`);
     closeEverything(1);
   });
 
@@ -80,13 +82,13 @@ function start(name, script, argv) {
   return child;
 }
 
-function label(stream, name) {
+function label(stream: any, name: string) {
   if (!stream) return;
 
   let rest = '';
 
   stream.setEncoding('utf8');
-  stream.on('data', (chunk) => {
+  stream.on('data', (chunk: any) => {
     const lines = (rest + chunk).split('\n');
     rest = lines.pop() ?? '';
     for (const line of lines) process.stdout.write(`[${name}] ${line}\n`);
@@ -97,8 +99,8 @@ function label(stream, name) {
   });
 }
 
-function untilItSays(child, pattern, ms) {
-  return new Promise((done) => {
+function untilItSays(child: ChildProcess, pattern: RegExp, ms: number) {
+  return new Promise<void>((done) => {
     let seen = '';
 
     const giveUp = setTimeout(() => {
@@ -106,7 +108,7 @@ function untilItSays(child, pattern, ms) {
       finish();
     }, ms);
 
-    const look = (chunk) => {
+    const look = (chunk: any) => {
       seen += chunk;
       if (pattern.test(seen)) finish();
     };
@@ -121,7 +123,7 @@ function untilItSays(child, pattern, ms) {
   });
 }
 
-function closeEverything(code) {
+function closeEverything(code: number) {
   if (closing) return;
   closing = true;
 

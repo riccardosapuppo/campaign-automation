@@ -25,7 +25,7 @@
  * commas reads the whole thing as one column with a very long name — which
  * looks like an empty import rather than like a delimiter problem.
  */
-export function rows(text) {
+export function rows(text: unknown): string[][] {
   const clean = String(text ?? '').replace(/^﻿/, '');
   if (!clean.trim()) return [];
 
@@ -78,7 +78,7 @@ export function rows(text) {
   return out.filter((one) => one.some((cell) => cell.trim() !== ''));
 }
 
-function countOutsideQuotes(line, ch) {
+function countOutsideQuotes(line: string, ch: string): number {
   let count = 0;
   let inQuotes = false;
 
@@ -108,7 +108,7 @@ const BY_HEADER = [
   { field: 'suppressed', words: /\b(unsubscrib\w*|opt.?out|suppress\w*|disiscritt\w*|bounced)\b/i },
 ];
 
-export function whatTheColumnsAre(header, sample = []) {
+export function whatTheColumnsAre(header: string[], sample: string[][] = []) {
   return header.map((title, at) => {
     const clean = String(title ?? '').trim();
 
@@ -147,14 +147,14 @@ export function whatTheColumnsAre(header, sample = []) {
  * Dropping the row would hide the work; importing it as sendable would be the
  * whole failure this project is against.
  */
-export function read(text) {
+export function read(text: unknown) {
   const all = rows(text);
   if (all.length === 0) return { contacts: [], columns: [], trouble: ['there is nothing in that file'] };
 
   const [header, ...body] = all;
   const columns = whatTheColumnsAre(header, body.slice(0, 25));
 
-  const where = (field) => columns.find((one) => one.field === field)?.at ?? -1;
+  const where = (field: string): number => columns.find((one) => one.field === field)?.at ?? -1;
 
   const at = {
     address: where('address'),
@@ -183,7 +183,7 @@ export function read(text) {
       continue;
     }
 
-    const fields = {};
+    const fields: Record<string, string> = {};
     for (const column of columns) {
       if (column.field !== 'other' && column.field !== 'maybeDate') continue;
       const key = keyFor(column.title, column.at);
@@ -213,7 +213,7 @@ export function read(text) {
 }
 
 /** A column heading, as something a template can name. */
-function keyFor(title, at) {
+function keyFor(title: string, at: number): string {
   const clean = String(title ?? '')
     .trim()
     .toLowerCase()
@@ -232,7 +232,7 @@ function keyFor(title, at) {
  * fresh one look stale. When the shape is ambiguous it is read day-first,
  * because that is where these files come from, and the README says so.
  */
-export function asDate(text) {
+export function asDate(text: unknown): string | null {
   const said = String(text ?? '').trim();
 
   const dayFirst = said.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
@@ -245,6 +245,6 @@ export function asDate(text) {
   return Number.isNaN(parsed) ? said : new Date(parsed).toISOString();
 }
 
-function yes(text) {
+function yes(text: unknown): boolean {
   return /^(y|yes|true|1|si|sì|x)$/i.test(String(text ?? '').trim());
 }

@@ -1,0 +1,58 @@
+{
+  /*
+   * TypeScript that Node runs directly.
+   *
+   * There is no build step in this project and adding one would have cost more
+   * than the types are worth. From Node 24 the runtime strips type annotations
+   * at load, so `node src/index.ts` is the whole story — no transpiler, no
+   * output directory, nothing generated that can go stale against its source.
+   *
+   * Three options make that arrangement honest rather than lucky:
+   *
+   *   erasableSyntaxOnly          rejects anything Node cannot strip — enums,
+   *                               parameter properties, namespaces. Without it
+   *                               the types check and the program does not run,
+   *                               which is the worst of both.
+   *   allowImportingTsExtensions  because the imports name the file that is
+   *                               actually there. Node resolves the specifier
+   *                               literally; writing `.js` for a file called
+   *                               `.ts` is a convention that needs a compiler
+   *                               to make true, and there isn't one.
+   *   noEmit                      nothing is produced. `tsc` is a checker here,
+   *                               not a build.
+   *
+   * `dom` is in `lib` because the checks under `tools/` drive a real browser,
+   * and the callbacks they hand to `page.evaluate` run inside the page --
+   * `document` there is not a mistake. Nothing under `src/` touches the DOM.
+   *
+   * `strict` and no further. `noUncheckedIndexedAccess` was on for one pass
+   * and produced thirty complaints about `rows[0]` immediately after a check
+   * on `rows.length`, each of which wanted a cast that said nothing. Strict
+   * is the bar; stricter than useful is a setting somebody switches off.
+   *
+   * `src/` carries no explicit `any` at all. The two dozen under `tools/` are
+   * the harnesses: a Playwright page handle, and JSON the service returns whose
+   * shape belongs to the service rather than to the check. Typing those would
+   * mean a second copy of every response shape, kept in step by hand -- which
+   * is exactly the sort of duplication the rest of this repository refuses.
+   */
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023", "dom"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    "strict": true,
+    "noImplicitOverride": true,
+
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+
+  "include": ["src/**/*.ts", "tools/**/*.ts", "test/**/*.ts"]
+}

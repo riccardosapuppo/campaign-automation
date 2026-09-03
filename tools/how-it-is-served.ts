@@ -33,7 +33,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { matchesTheReadme } from './what-the-readme-claims.mjs';
+import { matchesTheReadme } from './what-the-readme-claims.ts';
 
 const PORT = 3668;
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -98,7 +98,7 @@ process.exitCode = bad === 0 ? 0 : 1;
 
 // ---------------------------------------------------------------------------
 
-function is(what, got, wanted) {
+function is(what: string, got: unknown, wanted?: unknown): void {
   checks += 1;
 
   if (got === wanted) {
@@ -110,10 +110,10 @@ function is(what, got, wanted) {
   console.log(`  NO    ${what}\n          wanted ${JSON.stringify(wanted)}, got ${JSON.stringify(got)}`);
 }
 
-function has(what, got, wanted) {
+function has(what: string, got: unknown, wanted?: unknown): void {
   checks += 1;
 
-  if (String(got ?? '').includes(wanted)) {
+  if (String(got ?? '').includes(String(wanted))) {
     console.log(`  ok    ${what}`);
     return;
   }
@@ -123,7 +123,7 @@ function has(what, got, wanted) {
 }
 
 async function start() {
-  const one = spawn(process.execPath, ['src/index.js'], {
+  const one = spawn(process.execPath, ['src/index.ts'], {
     cwd: root,
     env: { ...process.env, PORT: String(PORT), DB: path.join(folder, 'serving.db') },
     stdio: ['ignore', 'ignore', 'pipe'],
@@ -132,7 +132,7 @@ async function start() {
   one.stderr.on('data', (chunk) => process.stderr.write(chunk));
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const up = await new Promise((done) => {
+    const up = await new Promise<boolean>((done) => {
       const socket = net.createConnection({ host: '127.0.0.1', port: PORT });
       socket.once('connect', () => {
         socket.destroy();
@@ -142,16 +142,16 @@ async function start() {
     });
 
     if (up) return one;
-    await new Promise((done) => setTimeout(done, 50));
+    await new Promise<void>((done) => setTimeout(done, 50));
   }
 
   throw new Error(`the service never came up on ${PORT}`);
 }
 
-function gone(one) {
+function gone(one: any) {
   if (one.exitCode !== null) return null;
 
-  return new Promise((done) => {
+  return new Promise<void>((done) => {
     const impatient = setTimeout(() => {
       one.kill('SIGKILL');
       done();

@@ -22,7 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { matchesTheReadme } from './what-the-readme-claims.mjs';
+import { matchesTheReadme } from './what-the-readme-claims.ts';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -48,7 +48,7 @@ is('it says what it is, for anybody who cannot see it', /aria-label="[^"]+"/.tes
 
 // ------------------------------------------------------------ at 16 pixels
 
-let chromium;
+let chromium: typeof import('playwright-core').chromium;
 try {
   ({ chromium } = createRequire(import.meta.url)('playwright-core'));
 } catch {
@@ -103,7 +103,7 @@ process.exitCode = bad === 0 ? 0 : 1;
  * the numbers in the file, which is the mistake that lets a mark pass while
  * being invisible.
  */
-async function inkAt(size) {
+async function inkAt(size: any) {
   const sheet = await browser.newPage({ viewport: { width: size, height: size } });
 
   try {
@@ -122,10 +122,10 @@ async function inkAt(size) {
       canvas.width = wide;
       canvas.height = wide;
 
-      const brush = canvas.getContext('2d');
+      const brush = canvas.getContext('2d')!;
       brush.fillStyle = '#fff';
       brush.fillRect(0, 0, wide, wide);
-      brush.drawImage(document.querySelector('img'), 0, 0, wide, wide);
+      brush.drawImage(document.querySelector('img')!, 0, 0, wide, wide);
 
       const pixels = brush.getImageData(0, 0, wide, wide).data;
       let covered = 0;
@@ -153,7 +153,7 @@ async function inkAt(size) {
   }
 }
 
-function is(what, got, wanted) {
+function is(what: string, got: unknown, wanted?: unknown): void {
   checks += 1;
 
   if (got === wanted) {

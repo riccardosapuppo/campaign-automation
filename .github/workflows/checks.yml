@@ -39,6 +39,12 @@ jobs:
       - name: the rules
         run: npm test
 
+      - name: the types
+        # `tsc` produces nothing here: there is no build. It is a checker, and
+        # `erasableSyntaxOnly` in tsconfig.json makes it also the guarantee that
+        # Node can still run these files without one.
+        run: npm run typecheck
+
       - name: the whole story, through HTTP
         run: npm run walkthrough
 
@@ -65,7 +71,7 @@ jobs:
         # campaign.
         run: |
           if grep -rEn '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' \
-               --include='*.js' --include='*.mjs' --include='*.csv' \
+               --include='*.ts' --include='*.js' --include='*.csv' \
                --include='*.html' --include='*.md' --include='*.json' \
                . | grep -v node_modules | grep -v '\.invalid' | grep -v 'example\.com'; then
             echo "an address above is not a .invalid one"
@@ -98,7 +104,7 @@ jobs:
       - name: it says what is missing instead of falling over
         run: |
           set +e
-          out=$(node src/index.js 2>&1)
+          out=$(node src/index.ts 2>&1)
           code=$?
           set -e
 

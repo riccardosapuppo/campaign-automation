@@ -30,9 +30,9 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import net from 'node:net';
 
-import { matchesTheReadme } from './what-the-readme-claims.mjs';
+import { matchesTheReadme } from './what-the-readme-claims.ts';
 
-import { smtp } from '../src/send/transports.js';
+import { smtp } from '../src/send/transports.ts';
 
 const IMAGE = 'axllent/mailpit:v1.21';
 const NAME = 'campaigns-check-smtp';
@@ -91,7 +91,7 @@ try {
   // cleanup broke rather than the check.
   bad += 1;
   checks += 1;
-  console.log(`\n  NO    the check could not be carried out\n          ${error.message}`);
+  console.log(`\n  NO    the check could not be carried out\n          ${(error instanceof Error ? error.message : String(error))}`);
 } finally {
   // Always, including on the way out of a failure. A check that leaves a
   // container running is a check that has to be cleaned up after.
@@ -150,8 +150,11 @@ async function readBack() {
   const list = await json(`/api/v1/messages?limit=50`);
   is('all four arrived', list.messages.length, 4);
 
-  const one = async (to) => {
-    const summary = list.messages.find((m) => m.To.some((who) => who.Address === to));
+  const one = async (to: string) => {
+    // Mailpit's shape, as its API documents it.
+    type Sent = { ID: string; To: Array<{ Address: string }> };
+
+    const summary = (list.messages as Sent[]).find((m) => m.To.some((who) => who.Address === to));
     if (!summary) return null;
     return json(`/api/v1/message/${summary.ID}`);
   };
@@ -201,11 +204,11 @@ async function readBack() {
 
 // ------------------------------------------------------------------- small
 
-function json(url) {
+function json(url: string) {
   return fetch(`http://127.0.0.1:${WEB_PORT}${url}`).then((r) => r.json());
 }
 
-function is(what, got, wanted) {
+function is(what: string, got: unknown, wanted?: unknown): void {
   checks += 1;
 
   if (got === wanted) {
@@ -217,10 +220,10 @@ function is(what, got, wanted) {
   console.log(`  NO    ${what}\n          wanted ${JSON.stringify(wanted)}\n          got    ${JSON.stringify(got)}`);
 }
 
-function has(what, got, wanted) {
+function has(what: string, got: unknown, wanted?: unknown): void {
   checks += 1;
 
-  if (String(got ?? '').includes(wanted)) {
+  if (String(got ?? '').includes(String(wanted))) {
     console.log(`  ok    ${what}`);
     return;
   }
@@ -229,7 +232,7 @@ function has(what, got, wanted) {
   console.log(`  NO    ${what}\n          wanted something containing ${JSON.stringify(wanted)}\n          got    ${JSON.stringify(got)}`);
 }
 
-function works(command, argv) {
+function works(command: string, argv: string[]) {
   const said = spawnSync(command, argv, { stdio: 'ignore' });
   return said.status === 0;
 }
@@ -264,14 +267,14 @@ function works(command, argv) {
  * exact version rather than a tag that moves. If the line ever changes, this
  * fails loudly with what it was waiting for and what it actually saw.
  */
-async function untilTheContainerSaysItIsListening(what, saying) {
+async function untilTheContainerSaysItIsListening(what: string, saying: RegExp) {
   let last = '';
 
   for (let attempt = 0; attempt < 300; attempt += 1) {
     last = String(execFileSync('docker', ['logs', NAME], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
 
     if (saying.test(last)) return;
-    await new Promise((done) => setTimeout(done, 100));
+    await new Promise<void>((done) => setTimeout(done, 100));
   }
 
   throw new Error(
@@ -282,32 +285,32 @@ async function untilTheContainerSaysItIsListening(what, saying) {
 }
 
 /** And then one real connection, which by now is expected to work first time. */
-async function untilItGreetsUs(port) {
+async function untilItGreetsUs(port: number) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
-    const greeted = await new Promise((done) => {
+    const greeted = await new Promise<boolean>((done) => {
       const socket = net.createConnection({ host: '127.0.0.1', port });
       socket.setEncoding('utf8');
       socket.setTimeout(2000);
 
-      const finish = (said) => {
+      const finish = (said: any) => {
         socket.destroy();
         done(said);
       };
 
-      socket.once('data', (chunk) => finish(/^220[ -]/.test(chunk)));
+      socket.once('data', (chunk: Buffer | string) => finish(/^220[ -]/.test(String(chunk))));
       socket.once('error', () => finish(false));
       socket.once('timeout', () => finish(false));
     });
 
     if (greeted) return;
-    await new Promise((done) => setTimeout(done, 200));
+    await new Promise<void>((done) => setTimeout(done, 200));
   }
 
   throw new Error(`${IMAGE} said it was listening on ${port}, and then did not greet us`);
 }
 
 /** The web side: an answer to a real question, not an open port. */
-async function untilItAnswersQuestions(port) {
+async function untilItAnswersQuestions(port: number) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/api/v1/messages?limit=1`);
@@ -319,7 +322,7 @@ async function untilItAnswersQuestions(port) {
       /* not up yet */
     }
 
-    await new Promise((done) => setTimeout(done, 200));
+    await new Promise<void>((done) => setTimeout(done, 200));
   }
 
   throw new Error(`${IMAGE} never answered its own API on ${port}`);

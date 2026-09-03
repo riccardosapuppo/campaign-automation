@@ -7,22 +7,25 @@
  */
 
 import assert from 'node:assert/strict';
+import type { Contact } from '../src/rules/permission.ts';
+import type { CampaignRow } from '../src/store/db.ts';
+import type { Mail } from '../src/send/transports.ts';
 import { describe, it } from 'node:test';
 
-import { store } from '../src/store/db.js';
-import { decide, run } from '../src/send/campaign.js';
+import { store } from '../src/store/db.ts';
+import { decide, run } from '../src/send/campaign.ts';
 
 const NOW = Date.parse('2026-09-01T09:00:00.000Z');
 const RECENT = '2026-03-01T00:00:00.000Z';
 const ANCIENT = '2020-01-01T00:00:00.000Z';
 
-function set(contacts) {
+function set(contacts: Contact[]) {
   const kept = store({ file: ':memory:' });
 
   for (const contact of contacts) {
     kept.remember(contact);
-    if (contact.basis) kept.record({ address: contact.address, ...contact.basis });
-    if (contact.suppressed) kept.suppress(contact.address, 'they asked to stop');
+    if (contact.basis) kept.record({ address: contact.address!, ...contact.basis });
+    if (contact.suppressed) kept.suppress(contact.address!, 'they asked to stop');
   }
 
   const campaign = kept.createCampaign({
@@ -33,25 +36,27 @@ function set(contacts) {
     fromAddress: 'hello@example.invalid',
   });
 
-  return { kept, campaign };
+  return { kept, campaign: campaign as CampaignRow };
 }
 
-const consented = (address, extra = {}) => ({
+const consented = (address: string, extra: Partial<Contact> = {}): Contact => ({
   address,
-  name: address.split('@')[0],
+  name: address.split('@')[0] ?? address,
   fields: { company: 'Harbour Clinic' },
   basis: { kind: 'consent', recordedAt: RECENT, source: 'the sign-up form' },
+  suppressed: false,
+  suppressedWhy: null,
   ...extra,
 });
 
 /** Counts every send, so a test can prove one did not happen. */
 function counting() {
-  const sent = [];
+  const sent: Mail[] = [];
 
   return {
     sent,
     name: 'counting',
-    async send(message) {
+    async send(message: Mail) {
       sent.push(message);
       return { why: 'counted' };
     },
@@ -75,7 +80,7 @@ describe('working out who may be written to', () => {
   it('writes down every refusal with its reason', () => {
     const { kept, campaign } = set([
       consented('fine@example.invalid'),
-      { address: 'nothing@example.invalid', name: 'Nothing', fields: { company: 'X' } },
+      ({ address: 'nothing@example.invalid', name: 'Nothing', fields: { company: 'X' }, basis: null, suppressed: false, suppressedWhy: null }),
       consented('old@example.invalid', { basis: { kind: 'consent', recordedAt: ANCIENT, source: 'the old list' } }),
       consented('stopped@example.invalid', { suppressed: true }),
     ]);
@@ -88,8 +93,10 @@ describe('working out who may be written to', () => {
 
     // A refusal that is only a number in a summary cannot answer "why did this
     // person not get it", which is the question somebody always asks.
-    const rows = kept.forCampaign(campaign.id);
-    for (const row of rows) assert.ok(row.why?.length > 0, `${row.address} was refused with no reason`);
+    const rows = kept.forCampaign(campaign!.id);
+    for (const row of rows) {
+      assert.ok(String(row.why ?? '').length > 0, `${row.address} was refused with no reason`);
+    }
 
     kept.close();
   });
@@ -114,7 +121,7 @@ describe('working out who may be written to', () => {
 
     decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
 
-    const [row] = kept.waiting(campaign.id);
+    const [row] = kept.waiting(campaign!.id);
     assert.equal(row.subject, 'Hello a');
     assert.equal(row.body, 'Your account at Harbour Clinic is unchanged.');
     kept.close();
@@ -125,7 +132,7 @@ describe('sending what was allowed', () => {
   it('sends to exactly the people who were allowed', async () => {
     const { kept, campaign } = set([
       consented('yes@example.invalid'),
-      { address: 'no@example.invalid', name: 'No', fields: { company: 'X' } },
+      ({ address: 'no@example.invalid', name: 'No', fields: { company: 'X' }, basis: null, suppressed: false, suppressedWhy: null }),
     ]);
 
     decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
@@ -153,7 +160,7 @@ describe('sending what was allowed', () => {
     const transport = counting();
     const changesItsMind = {
       name: 'changes its mind',
-      async send(message) {
+      async send(message: Mail) {
         // The first send is what triggers the second person's unsubscribe, so
         // this is the race the check is about rather than a setup step.
         kept.suppress('b@example.invalid', 'they replied STOP while this was running');
@@ -167,8 +174,8 @@ describe('sending what was allowed', () => {
     assert.equal(said.dropped, 1);
     assert.equal(transport.sent.length, 1);
 
-    const dropped = kept.forCampaign(campaign.id).find((one) => one.address === 'b@example.invalid');
-    assert.match(dropped.why, /it changed after this campaign was worked out/);
+    const dropped = kept.forCampaign(campaign!.id).find((one) => one.address === 'b@example.invalid');
+    assert.match(String(dropped?.why), /it changed after this campaign was worked out/);
 
     kept.close();
   });
@@ -188,7 +195,7 @@ describe('sending what was allowed', () => {
       perMinute: 0,
       transport: {
         name: 'awkward',
-        async send(message) {
+        async send(message: Mail) {
           if (message.to === 'b@example.invalid') throw new Error('550 5.1.1 No such person here');
           return { why: 'sent' };
         },
@@ -198,8 +205,8 @@ describe('sending what was allowed', () => {
     assert.equal(said.sent, 2);
     assert.equal(said.failed, 1);
 
-    const failed = kept.forCampaign(campaign.id).find((one) => one.state === 'failed');
-    assert.match(failed.why, /550/);
+    const failed = kept.forCampaign(campaign!.id).find((one) => one.state === 'failed');
+    assert.match(String(failed?.why), /550/);
     kept.close();
   });
 
@@ -211,7 +218,7 @@ describe('sending what was allowed', () => {
 
     decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
 
-    const waited = [];
+    const waited: number[] = [];
 
     await run({
       store: kept,
@@ -220,7 +227,7 @@ describe('sending what was allowed', () => {
       transport: {
         name: 'slow',
         async send() {
-          await new Promise((done) => setTimeout(done, 40));
+          await new Promise<void>((done) => setTimeout(done, 40));
           return { why: 'sent' };
         },
       },
@@ -246,7 +253,7 @@ describe('sending what was allowed', () => {
     const { kept, campaign } = set([consented('a@example.invalid')]);
 
     decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
-    assert.equal(kept.waiting(campaign.id).length, 1, 'it should have been allowed at that point');
+    assert.equal(kept.waiting(campaign!.id).length, 1, 'it should have been allowed at that point');
 
     const transport = counting();
     const said = await run({
@@ -261,8 +268,8 @@ describe('sending what was allowed', () => {
     assert.equal(said.dropped, 1);
     assert.equal(transport.sent.length, 0, 'a message went out under a clock that says the consent is stale');
 
-    const dropped = kept.forCampaign(campaign.id).find((one) => one.address === 'a@example.invalid');
-    assert.match(dropped.why, /longer than this campaign treats as current/);
+    const dropped = kept.forCampaign(campaign!.id).find((one) => one.address === 'a@example.invalid');
+    assert.match(String(dropped?.why), /longer than this campaign treats as current/);
 
     kept.close();
   });
@@ -276,7 +283,7 @@ describe('sending what was allowed', () => {
     // many times it is read per message is an implementation detail, so the
     // assertion is that the gap was shortened and not by everything.
     let tick = NOW;
-    const waited = [];
+    const waited: number[] = [];
 
     await run({
       store: kept,
@@ -342,7 +349,7 @@ describe('sending what was allowed', () => {
       keepGoing: () => !asked,
       transport: {
         name: 'somebody presses stop',
-        async send(message) {
+        async send(message: Mail) {
           asked = true; // pressed while the first one is going out
           return watched.send(message);
         },
@@ -355,7 +362,7 @@ describe('sending what was allowed', () => {
 
     // The two that did not go are still waiting, not refused and not failed —
     // so the same campaign can be sent later without writing to anybody twice.
-    assert.equal(second.kept.waiting(second.campaign.id).length, 2);
+    assert.equal(second.kept.waiting(second.campaign!.id).length, 2);
 
     second.kept.close();
   });
@@ -382,7 +389,7 @@ describe('sending what was allowed', () => {
     const { kept, campaign } = set([consented('a@example.invalid')]);
     decide({ store: kept, campaign, contacts: kept.everybody(), now: NOW });
 
-    const waited = [];
+    const waited: number[] = [];
     await run({ store: kept, campaign, transport: counting(), perMinute: 60, wait: async (ms) => waited.push(ms) });
 
     assert.deepEqual(waited, []);

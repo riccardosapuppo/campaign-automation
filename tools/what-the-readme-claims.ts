@@ -30,11 +30,11 @@ export const README = path.join(here, '..', 'README.md');
  */
 export function claims({ file = README } = {}) {
   const text = fs.readFileSync(file, 'utf8');
-  const found = {};
+  const found: Record<string, number> = {};
 
   for (const line of text.split(/\r?\n/)) {
     const said = line.match(/^\s*(npm (?:test|start|run [a-z:-]+))\s+#\s+(\d+)\b/);
-    if (said) found[said[1]] = Number(said[2]);
+    if (said) found[said[1]!] = Number(said[2]);
   }
 
   return found;
@@ -48,8 +48,8 @@ export function claims({ file = README } = {}) {
  * a harness that has just reported thirty-five results should report this one
  * too rather than vanishing.
  */
-export function matchesTheReadme(command, total, { file = README, say = console.log } = {}) {
-  const claimed = claims({ file })[command];
+export function matchesTheReadme(command: string, total: any, { file = README, say = console.log } = {}) {
+  const claimed = (claims({ file }) as Record<string, number>)[command];
 
   if (claimed === undefined) {
     say(`  NO    the README does not say how many checks \`${command}\` runs`);

@@ -41,14 +41,14 @@ export const NEEDS_NODE = 24;
 export async function runtimeIsUsable({
   version = process.versions.node,
   load = () => import('node:sqlite'),
-} = {}) {
+}: { version?: string; load?: () => Promise<unknown> } = {}) {
   const major = Number(String(version).split('.')[0]);
 
   try {
     await load();
     return { ok: true, why: `Node ${version}, and node:sqlite is here` };
   } catch (error) {
-    if (error?.code !== 'ERR_UNKNOWN_BUILTIN_MODULE') throw error;
+    if ((error as NodeJS.ErrnoException)?.code !== 'ERR_UNKNOWN_BUILTIN_MODULE') throw error;
 
     return {
       ok: false,

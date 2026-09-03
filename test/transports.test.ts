@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { asHeader, asMail, toFolder, dryRun } from '../src/send/transports.js';
+import { asHeader, asMail, toFolder, dryRun } from '../src/send/transports.ts';
 
 const message = {
   to: 'anna@example.invalid',
@@ -132,7 +132,7 @@ describe('the transport that sends nothing', () => {
   });
 
   it('still renders everything, so it is a real rehearsal', async () => {
-    const seen = [];
+    const seen: any[] = [];
     await dryRun({ onMessage: (one) => seen.push(one) }).send(message);
 
     assert.equal(seen[0].to, 'anna@example.invalid');

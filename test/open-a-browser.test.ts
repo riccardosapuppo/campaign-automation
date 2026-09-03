@@ -14,7 +14,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { openInABrowser } from '../src/open-a-browser.js';
+import { openInABrowser } from '../src/open-a-browser.ts';
 
 const url = 'http://127.0.0.1:3608/';
 
@@ -57,7 +57,11 @@ describe('opening the page when the service starts', () => {
       [[], { CI: '1' }, true],
       [[], {}, false],
     ]) {
-      const said = openInABrowser(url, { argv, env, isTTY });
+      const said = openInABrowser(url, {
+        argv: argv as string[],
+        env: env as NodeJS.ProcessEnv,
+        isTTY: isTTY as boolean,
+      });
       assert.ok(said.why && said.why.length > 4, 'a refusal with no reason in it');
     }
   });

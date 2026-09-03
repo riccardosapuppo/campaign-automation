@@ -6,15 +6,15 @@
  */
 
 import assert from 'node:assert/strict';
+import type { Contact } from '../src/rules/permission.ts';
 import { describe, it } from 'node:test';
 
-import { fill, fieldsIn, whoIsMissingSomething } from '../src/render/template.js';
+import { fill, fieldsIn, whoIsMissingSomething } from '../src/render/template.ts';
 
 const anna = {
   address: 'anna@example.invalid',
   name: 'Anna',
-  fields: { company: 'Harbour Clinic', order: 'A-4471' },
-};
+  fields: { company: 'Harbour Clinic', order: 'A-4471' }, basis: null, suppressed: false, suppressedWhy: null } as Contact;
 
 describe('filling one in', () => {
   it('puts the values in', () => {
@@ -35,8 +35,8 @@ describe('filling one in', () => {
     // "Hello ,". This does neither — it reports, and the campaign refuses.
     const said = fill('Hello {{name}}, about {{invoice}}', anna);
 
-    assert.deepEqual(said.missing, ['invoice']);
-    assert.match(said.text, /\{\{invoice\}\}/);
+    assert.deepEqual(said!.missing, ['invoice']);
+    assert.match(said!.text, /\{\{invoice\}\}/);
   });
 
   it('treats a field that is there but empty as missing', () => {
@@ -44,23 +44,35 @@ describe('filling one in', () => {
     // a value. "Your account at  is unchanged" is the message this prevents.
     const said = fill('at {{company}}', { ...anna, fields: { company: '   ' } });
 
-    assert.deepEqual(said.missing, ['company']);
+    assert.deepEqual(said!.missing, ['company']);
   });
 
   it('uses a fallback the template asked for', () => {
     // `{{name | there}}` is the author saying out loud what should happen,
     // which is different from the tool deciding on their behalf. There is no
     // default default.
-    const said = fill('Hello {{name | there}}', { address: 'x@example.invalid', fields: {} });
+    const said = fill('Hello {{name | there}}', {
+      address: 'x@example.invalid',
+      fields: {},
+      basis: null,
+      suppressed: false,
+      suppressedWhy: null,
+    });
 
-    assert.equal(said.text, 'Hello there');
-    assert.deepEqual(said.missing, []);
+    assert.equal(said!.text, 'Hello there');
+    assert.deepEqual(said!.missing, []);
   });
 
   it('records that it fell back, so it is visible', () => {
-    const said = fill('Hello {{name | there}}', { address: 'x@example.invalid', fields: {} });
+    const said = fill('Hello {{name | there}}', {
+      address: 'x@example.invalid',
+      fields: {},
+      basis: null,
+      suppressed: false,
+      suppressedWhy: null,
+    });
 
-    assert.deepEqual(said.used, ['name (fell back)']);
+    assert.deepEqual(said!.used, ['name (fell back)']);
   });
 
   it('reports a missing field once however many times it appears', () => {
@@ -73,7 +85,10 @@ describe('what a template is allowed to reach', () => {
     // A template is written by whoever runs the campaign and read by a program
     // that also holds the consent records. `{{basis.source}}` in a subject
     // line would put somebody's consent trail in an email.
-    const contact = { ...anna, basis: { kind: 'consent', source: 'the sign-up form' } };
+    const contact: Contact = {
+      ...anna,
+      basis: { kind: 'consent', recordedAt: null, source: 'the sign-up form' },
+    };
 
     assert.deepEqual(fill('{{basis.source}}', contact).missing, ['basis.source']);
   });
@@ -96,18 +111,18 @@ describe('before anybody presses anything', () => {
     // have no company name" is read then rather than discovered afterwards.
     const contacts = [
       anna,
-      { address: 'b@example.invalid', name: 'Ben', fields: {} },
-      { address: 'c@example.invalid', name: 'Cara', fields: {} },
-      { address: 'd@example.invalid', name: 'Dan', fields: {} },
-      { address: 'e@example.invalid', name: 'Eve', fields: {} },
+      { address: 'b@example.invalid', name: 'Ben', fields: {}, basis: null, suppressed: false, suppressedWhy: null },
+      { address: 'c@example.invalid', name: 'Cara', fields: {}, basis: null, suppressed: false, suppressedWhy: null },
+      { address: 'd@example.invalid', name: 'Dan', fields: {}, basis: null, suppressed: false, suppressedWhy: null },
+      { address: 'e@example.invalid', name: 'Eve', fields: {}, basis: null, suppressed: false, suppressedWhy: null },
     ];
 
     const [trouble] = whoIsMissingSomething('at {{company}}', contacts);
 
-    assert.equal(trouble.field, 'company');
-    assert.equal(trouble.howMany, 4);
+    assert.equal(trouble!.field, 'company');
+    assert.equal(trouble!.howMany, 4);
     // A few, not four hundred: a list nobody reads is a list nobody reads.
-    assert.equal(trouble.forExample.length, 3);
+    assert.equal(trouble!.forExample.length, 3);
   });
 
   it('has nothing to say when the template fits everybody', () => {

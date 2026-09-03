@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { looksLikeStop, mayReceive, sortOut } from '../src/rules/permission.js';
+import { looksLikeStop, mayReceive, sortOut } from '../src/rules/permission.ts';
 
 /**
  * The suite that matters. Everything else in this project is plumbing; this is

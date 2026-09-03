@@ -37,6 +37,13 @@ of this answers a question the original never asked: *may we send this at all?*
 
 **Node 24 or newer**, and nothing else, to run it.
 
+It is **TypeScript that Node runs directly**. From 24 the runtime strips type
+annotations at load, so `node src/index.ts` is the whole story: no transpiler,
+no build step, no output directory holding a stale copy of the source.
+`erasableSyntaxOnly` in `tsconfig.json` makes `tsc` reject anything Node cannot
+strip, so `npm run typecheck` is not only a check on the types — it is the
+check that this still runs without a build.
+
 That number is not a guess and it is not "the version I happened to have". The
 database is [`node:sqlite`](https://nodejs.org/api/sqlite.html), which is part
 of Node rather than a dependency — but only from a certain version. This README
@@ -264,6 +271,7 @@ Five layers, and each one has caught something the others could not.
 
 ```bash
 npm test              # 126  the rules, the importer, the template, the store
+npm run typecheck    #     the types, and that Node still runs this without a build
 npm run walkthrough   #  36  the whole story through HTTP, against a live service
 npm run check:screen  #  31  the console, driven with a browser
 npm run check:smtp    #  13  against an SMTP server nobody here wrote
@@ -338,13 +346,13 @@ without having recorded an answer.
 ## How it is put together
 
 ```
-src/rules/permission.js   the whole argument: may this person be sent this
-src/import/csv.js         a spreadsheet, and what each column probably is
-src/render/template.js    filling one in, and refusing to guess
-src/store/db.js           SQLite: contacts, bases, suppressions, messages
-src/send/campaign.js      the only thing here that sends anything
-src/send/transports.js    dry run, a folder, and SMTP spoken by hand
-src/http/api.js           the service and the console it serves
+src/rules/permission.ts   the whole argument: may this person be sent this
+src/import/csv.ts         a spreadsheet, and what each column probably is
+src/render/template.ts    filling one in, and refusing to guess
+src/store/db.ts           SQLite: contacts, bases, suppressions, messages
+src/send/campaign.ts      the only thing here that sends anything
+src/send/transports.ts    dry run, a folder, and SMTP spoken by hand
+src/http/api.ts           the service and the console it serves
 sink/smtp.js              a real SMTP server that delivers nowhere
 ```
 

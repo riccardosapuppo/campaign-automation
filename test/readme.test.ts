@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { claims } from '../tools/what-the-readme-claims.mjs';
+import { claims } from '../tools/what-the-readme-claims.ts';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
@@ -46,7 +46,7 @@ describe('every command the README tells somebody to type', () => {
 });
 
 describe('every check the README counts', () => {
-  const counted = claims();
+  const counted: Record<string, number> = claims();
 
   it('is a command that exists', () => {
     for (const command of Object.keys(counted)) {
@@ -62,7 +62,7 @@ describe('every check the README counts', () => {
     // be counted: `node --test` reports exactly the number of `it(` cases.
     const cases = fs
       .readdirSync(path.join(root, 'test'))
-      .filter((one) => one.endsWith('.test.js'))
+      .filter((one) => one.endsWith('.test.ts'))
       .reduce((all, one) => all + (fs.readFileSync(path.join(root, 'test', one), 'utf8').match(/^\s+it\(/gm) ?? []).length, 0);
 
     assert.equal(
@@ -75,7 +75,12 @@ describe('every check the README counts', () => {
   it('and every harness the README counts says so out loud when it runs', () => {
     // Without this, a harness could be added to the table and never check its
     // own line — which is how the 86 survived in the first place.
-    const harnesses = { 'npm run walkthrough': 'walkthrough.mjs', 'npm run check:screen': 'through-the-screen.mjs', 'npm run check:smtp': 'against-a-real-server.mjs', 'npm run check:mark': 'check-mark.mjs' };
+    const harnesses: Record<string, string> = {
+      'npm run walkthrough': 'walkthrough.ts',
+      'npm run check:screen': 'through-the-screen.ts',
+      'npm run check:smtp': 'against-a-real-server.ts',
+      'npm run check:mark': 'check-mark.ts',
+    };
 
     for (const [command, file] of Object.entries(harnesses)) {
       if (counted[command] === undefined) continue;

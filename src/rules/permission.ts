@@ -28,7 +28,33 @@
  * about the thing they bought — and it does NOT stretch to marketing to
  * strangers, which is exactly the stretch every spam tool makes.
  */
-export const BASES = ['consent', 'legitimate-interest'];
+export const BASES = ['consent', 'legitimate-interest'] as const;
+
+/**
+ * A person, and the only four things a send has to know about them.
+ *
+ * `suppressed` is a boolean and `basis` is a whole record rather than a flag,
+ * and that asymmetry is deliberate: "they asked to stop" needs no detail to be
+ * obeyed, and "they agreed" is worth nothing without when and where.
+ */
+export type Basis = {
+  kind: (typeof BASES)[number] | string;
+  recordedAt: string | null;
+  source: string | null;
+};
+
+export type Contact = {
+  address: string | null;
+  name?: string | null;
+  fields?: Record<string, unknown>;
+  basis: Basis | null;
+  suppressed: boolean;
+  suppressedWhy: string | null;
+};
+
+export type Verdict = { ok: boolean; code: string; why: string };
+
+export type When = { now?: number; staleAfterDays?: number };
 
 /** How long a recorded consent is treated as still meaning something. */
 export const STALE_AFTER_DAYS = 730;
@@ -41,10 +67,10 @@ export const STALE_AFTER_DAYS = 730;
  * @property {string|null} suppressedWhy
  */
 
-/**
- * @returns {{ ok: boolean, why: string, code: string }}
- */
-export function mayReceive(contact, { now = Date.now(), staleAfterDays = STALE_AFTER_DAYS } = {}) {
+export function mayReceive(
+  contact: Contact | null | undefined,
+  { now = Date.now(), staleAfterDays = STALE_AFTER_DAYS }: When = {}
+): Verdict {
   if (!contact?.address) {
     return { ok: false, code: 'no-address', why: 'there is no address to send to' };
   }
@@ -75,7 +101,7 @@ export function mayReceive(contact, { now = Date.now(), staleAfterDays = STALE_A
     };
   }
 
-  if (!BASES.includes(contact.basis.kind)) {
+  if (!(BASES as readonly string[]).includes(contact.basis.kind)) {
     return {
       ok: false,
       code: 'unknown-basis',
@@ -170,7 +196,7 @@ const PHRASES =
  * you. So it says which rule it matched and on which words, and whoever is
  * looking at the screen can see whether it matched the right thing.
  */
-export function looksLikeStop(text) {
+export function looksLikeStop(text: unknown): { yes: boolean; why: string } {
   const said = String(text ?? '').trim();
 
   if (ALONE.test(said)) return { yes: true, why: `the whole message is "${said}" and nothing else` };
@@ -189,9 +215,9 @@ export function looksLikeStop(text) {
  * three hundred and twelve — and the answer to that question is the most
  * interesting thing in the whole run.
  */
-export function sortOut(contacts, options = {}) {
-  const allowed = [];
-  const refused = [];
+export function sortOut(contacts: Contact[], options: When = {}) {
+  const allowed: Array<{ contact: Contact; why: string }> = [];
+  const refused: Array<{ contact: Contact; why: string; code: string }> = [];
 
   for (const contact of contacts) {
     const said = mayReceive(contact, options);
@@ -202,6 +228,9 @@ export function sortOut(contacts, options = {}) {
   return {
     allowed,
     refused,
-    counted: refused.reduce((tally, one) => ({ ...tally, [one.code]: (tally[one.code] ?? 0) + 1 }), {}),
+    counted: refused.reduce<Record<string, number>>(
+      (tally, one) => ({ ...tally, [one.code]: (tally[one.code] ?? 0) + 1 }),
+      {}
+    ),
   };
 }

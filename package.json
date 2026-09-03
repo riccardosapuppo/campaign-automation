@@ -8,17 +8,18 @@
   "license": "MIT",
   "main": "src/index.js",
   "scripts": {
-    "start": "node tools/run-both.mjs",
-    "service": "node src/index.js",
+    "start": "node tools/run-both.ts",
+    "service": "node src/index.ts",
     "sink": "node sink/smtp.js",
-    "build": "node tools/build.mjs",
+    "build": "node tools/build.ts",
     "test": "node --test",
-    "walkthrough": "node tools/walkthrough.mjs",
-    "check:smtp": "node tools/against-a-real-server.mjs",
-    "check:serving": "node tools/how-it-is-served.mjs",
-    "check:screen": "node tools/through-the-screen.mjs",
-    "check:mark": "node tools/check-mark.mjs",
-    "screenshots": "node tools/screenshots.mjs"
+    "typecheck": "tsc --noEmit",
+    "walkthrough": "node tools/walkthrough.ts",
+    "check:smtp": "node tools/against-a-real-server.ts",
+    "check:serving": "node tools/how-it-is-served.ts",
+    "check:screen": "node tools/through-the-screen.ts",
+    "check:mark": "node tools/check-mark.ts",
+    "screenshots": "node tools/screenshots.ts"
   },
   "dependencies": {
     "express": "^4.21.2"
@@ -27,6 +28,9 @@
     "node": ">=24.0.0"
   },
   "devDependencies": {
-    "playwright-core": "^1.62.1"
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.0.0",
+    "playwright-core": "^1.62.1",
+    "typescript": "^5.9.0"
   }
 }

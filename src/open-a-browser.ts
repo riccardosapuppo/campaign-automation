@@ -26,12 +26,21 @@
 
 import { spawn } from 'node:child_process';
 
+export type Opened = { opened: boolean; why: string };
+
 /**
  * @returns {{opened: boolean, why: string}} what happened, so the caller can
  *   log it. Silence about not opening is how "it did not open" becomes a bug
  *   report about the service being broken.
  */
-export function openInABrowser(url, { argv = process.argv, env = process.env, isTTY = process.stdout.isTTY } = {}) {
+export function openInABrowser(
+  url: string,
+  {
+    argv = process.argv,
+    env = process.env,
+    isTTY = process.stdout.isTTY,
+  }: { argv?: string[]; env?: NodeJS.ProcessEnv; isTTY?: boolean } = {}
+): Opened {
   if (argv.includes('--no-open')) return { opened: false, why: '--no-open was given' };
   if (env.NO_OPEN && env.NO_OPEN !== '0') return { opened: false, why: 'NO_OPEN is set' };
   if (env.CI && env.CI !== 'false') return { opened: false, why: 'this is CI' };
@@ -50,11 +59,12 @@ export function openInABrowser(url, { argv = process.argv, env = process.env, is
 
     return { opened: true, why: 'opened in the default browser' };
   } catch (error) {
-    return { opened: false, why: `could not open a browser: ${error.message}` };
+    const why = error instanceof Error ? error.message : String(error);
+    return { opened: false, why: `could not open a browser: ${why}` };
   }
 }
 
-function launcher(url) {
+function launcher(url: string): [string, string[]] {
   if (process.platform === 'win32') {
     // The empty string is the window TITLE, not a mistake. Without it `start`
     // treats a quoted URL as the title and opens nothing at all — silently,

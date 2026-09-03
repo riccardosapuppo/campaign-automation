@@ -17,6 +17,8 @@
  * changes, and the README shows what the console does today.
  */
 
+import type { ChildProcess } from 'node:child_process';
+
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
@@ -33,7 +35,7 @@ const PORT = 3648;
 const SINK = 3649;
 const SINK_WEB = 3650;
 
-let chromium;
+let chromium: typeof import('playwright-core').chromium;
 try {
   ({ chromium } = createRequire(import.meta.url)('playwright-core'));
 } catch {
@@ -42,13 +44,13 @@ try {
 }
 
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'campaigns-shots-'));
-const started = [];
+const started: ChildProcess[] = [];
 
 fs.mkdirSync(docs, { recursive: true });
 
 try {
   await start(['sink/smtp.js', String(SINK)], { SINK_WEB_PORT: String(SINK_WEB) }, SINK);
-  await start(['src/index.js'], { PORT: String(PORT), DB: path.join(folder, 'shots.db'), SMTP_PORT: String(SINK) }, PORT);
+  await start(['src/index.ts'], { PORT: String(PORT), DB: path.join(folder, 'shots.db'), SMTP_PORT: String(SINK) }, PORT);
 
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
 
@@ -69,7 +71,7 @@ try {
 
     // ---------------------------------------------------- 2. a reply, read
     await page.getByRole('button', { name: '…non-stop until Friday…' }).click();
-    await page.waitForFunction(() => document.getElementById('reply-said').textContent.trim().length > 0);
+    await page.waitForFunction(() => (document.getElementById('reply-said') as HTMLElement & Record<string, any>).textContent.trim().length > 0);
 
     await shoot(page, 'a-reply.png', '#panel-reply');
 
@@ -78,7 +80,7 @@ try {
     await page.waitForSelector('#steps:not([hidden])');
 
     await page.getByRole('button', { name: 'Work out who may be written to' }).click();
-    await page.waitForFunction(() => !document.getElementById('do-send').disabled);
+    await page.waitForFunction(() => !(document.getElementById('do-send') as HTMLElement & Record<string, any>).disabled);
 
     // ------------------------------------------------- 3b. while it goes out
     //
@@ -90,16 +92,16 @@ try {
     await page.getByRole('button', { name: 'Send' }).click();
 
     await page.waitForSelector('#sending[open]');
-    await page.waitForFunction(() => Number(document.getElementById('sent-so-far').textContent) >= 1);
+    await page.waitForFunction(() => Number((document.getElementById('sent-so-far') as HTMLElement & Record<string, any>).textContent) >= 1);
     await shoot(page, 'while-it-goes-out.png', '#sending');
 
     await page.getByRole('button', { name: 'Stop sending' }).click();
-    await page.waitForFunction(() => !document.getElementById('sending').open, null, { timeout: 20_000 });
+    await page.waitForFunction(() => !(document.getElementById('sending') as HTMLElement & Record<string, any>).open, null, { timeout: 20_000 });
 
     // Then the rest, so the campaign in the picture below is a finished one.
     await page.selectOption('#rate', '600');
     await page.getByRole('button', { name: 'Send' }).click();
-    await page.waitForFunction(() => /sent/.test(document.getElementById('send-said').textContent), null, { timeout: 20_000 });
+    await page.waitForFunction(() => /sent/.test((document.getElementById('send-said') as HTMLElement & Record<string, any>).textContent), null, { timeout: 20_000 });
 
     await shoot(page, 'a-campaign.png', '#panel-campaign');
 
@@ -129,7 +131,7 @@ try {
          img{display:block;border-radius:5px}</style>` +
         [16, 32, 64].map((size) => `<img src="${url()}" width="${size}" height="${size}">`).join('')
     );
-    await mark.waitForFunction(() => [...document.images].every((one) => one.complete));
+    await mark.waitForFunction(() => Array.from(document.images).every((one) => one.complete));
     await shoot(mark, 'the-mark.png');
     await mark.close();
   } finally {
@@ -149,7 +151,7 @@ function url() {
   return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
 }
 
-async function shoot(page, name, selector) {
+async function shoot(page: any, name: string, selector?: string) {
   const to = path.join(docs, name);
 
   if (selector) await page.locator(selector).screenshot({ path: to });
@@ -158,23 +160,23 @@ async function shoot(page, name, selector) {
   console.log(`  ${name}`);
 }
 
-async function start(argv, env, port) {
+async function start(argv: string[], env: NodeJS.ProcessEnv, port: number) {
   const child = spawn(process.execPath, argv, { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   started.push(child);
   child.stderr.on('data', (chunk) => process.stderr.write(chunk));
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await answering(port)) return child;
-    await new Promise((done) => setTimeout(done, 50));
+    await new Promise<void>((done) => setTimeout(done, 50));
   }
 
   throw new Error(`nothing came up on ${port}`);
 }
 
-function gone(child) {
+function gone(child: ChildProcess) {
   if (child.exitCode !== null) return null;
 
-  return new Promise((done) => {
+  return new Promise<void>((done) => {
     child.once('exit', done);
     child.kill();
     setTimeout(() => {
@@ -184,8 +186,8 @@ function gone(child) {
   });
 }
 
-function answering(port) {
-  return new Promise((done) => {
+function answering(port: number) {
+  return new Promise<boolean>((done) => {
     const socket = net.createConnection({ host: '127.0.0.1', port });
     socket.once('connect', () => {
       socket.destroy();

@@ -15,22 +15,37 @@
  */
 
 import express from 'express';
+import type { NextFunction, Request, Response } from 'express';
+import type { ServerResponse } from 'node:http';
+
+import type { Store } from '../store/db.ts';
+import type { Contact } from '../rules/permission.ts';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { mayReceive, looksLikeStop, sortOut } from '../rules/permission.js';
-import { read as readCsv } from '../import/csv.js';
-import { fieldsIn, whoIsMissingSomething } from '../render/template.js';
-import { decide, run } from '../send/campaign.js';
-import { dryRun, toFolder, smtp, WHAT_THERE_IS } from '../send/transports.js';
+import { mayReceive, looksLikeStop, sortOut } from '../rules/permission.ts';
+import { read as readCsv } from '../import/csv.ts';
+import { fieldsIn, whoIsMissingSomething } from '../render/template.ts';
+import { decide, run } from '../send/campaign.ts';
+import { dryRun, toFolder, smtp, WHAT_THERE_IS } from '../send/transports.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-/**
- * @param {object} options
- * @param {ReturnType<import('../store/db.js').store>} options.store
- */
-export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smtpPort = 3609, log = () => {} }) {
+export type Log = (level: string, message: string, detail?: Record<string, unknown>) => void;
+
+export function api({
+  store,
+  outbox = 'data/outbox',
+  smtpHost = '127.0.0.1',
+  smtpPort = 3609,
+  log = () => {},
+}: {
+  store: Store;
+  outbox?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  log?: Log;
+}) {
   const app = express();
 
   /**
@@ -77,7 +92,7 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
   const never = {
     etag: false,
     lastModified: false,
-    setHeaders(response) {
+    setHeaders(response: ServerResponse) {
       response.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     },
   };
@@ -113,7 +128,7 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     const said = readCsv(csv);
 
     for (const contact of said.contacts) {
-      store.remember(contact);
+      store.remember(contact as Contact);
 
       if (contact.basis) {
         store.record({
@@ -183,7 +198,7 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     store.record({ address, kind, recordedAt, source, text });
 
     const contact = store.contact(address);
-    response.json({ contact, said: mayReceive(contact ?? { address }) });
+    response.json({ contact, said: mayReceive((contact ?? { address }) as Contact) });
   });
 
   /**
@@ -201,7 +216,7 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     store.suppress(address, String(request.body?.why ?? 'they asked to stop'));
     log('info', 'suppressed', { address });
 
-    response.json({ address, suppressed: true, said: mayReceive(store.contact(address) ?? { address }) });
+    response.json({ address, suppressed: true, said: mayReceive((store.contact(address) ?? { address }) as Contact) });
   });
 
   /**
@@ -235,7 +250,7 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
   // -------------------------------------------------------------- campaigns
 
   app.get('/api/campaigns', (_request, response) => {
-    response.json({ campaigns: store.campaigns().map((one) => ({ ...one, ...store.howItWent(one.id) })) });
+    response.json({ campaigns: store.campaigns().map((one) => ({ ...one, ...store.howItWent(Number(one.id)) })) });
   });
 
   app.post('/api/campaigns', (request, response) => {
@@ -282,7 +297,7 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     response.json({
       stopping: true,
       note: 'it will stop between two messages, never inside one; what has not gone is still waiting',
-      ...store.howItWent(campaign.id),
+      ...store.howItWent(Number(campaign.id)),
     });
   });
 
@@ -290,7 +305,7 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     const campaign = store.campaign(Number(request.params.id));
     if (!campaign) return response.status(404).json({ error: 'no campaign with that number' });
 
-    response.json({ campaign, messages: store.forCampaign(campaign.id), ...store.howItWent(campaign.id) });
+    response.json({ campaign, messages: store.forCampaign(Number(campaign.id)), ...store.howItWent(Number(campaign.id)) });
   });
 
   /**
@@ -336,16 +351,16 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     // list is pinned by a test. Adding a transport here without adding it there
     // makes it unreachable rather than quietly available — which is the right
     // way round for the one thing this project promises it does not have.
-    if (!WHAT_THERE_IS.includes(which) || !transports[which]) {
+    if (!WHAT_THERE_IS.includes(which) || !transports[which as keyof typeof transports]) {
       return response
         .status(400)
         .json({ error: `there is no "${which}" transport`, there_is: WHAT_THERE_IS });
     }
 
-    if (store.waiting(campaign.id).length === 0) {
+    if (store.waiting(Number(campaign.id)).length === 0) {
       return response.status(409).json({
         error: 'nothing is waiting to go for this campaign — work out who may be written to first',
-        ...store.howItWent(campaign.id),
+        ...store.howItWent(Number(campaign.id)),
       });
     }
 
@@ -355,9 +370,9 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
       const said = await run({
         store,
         campaign,
-        transport: transports[which](),
+        transport: transports[which as keyof typeof transports](),
         perMinute,
-        log,
+        log: log as (level: string, message: string, detail?: Record<string, unknown>) => void,
         keepGoing: () => !asked.has(campaign.id),
       });
 
@@ -369,7 +384,7 @@ export function api({ store, outbox = 'data/outbox', smtpHost = '127.0.0.1', smt
     }
   });
 
-  app.use((error, _request, response, _next) => {
+  app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => {
     log('error', 'the request could not be handled', { why: error.message });
     response.status(500).json({ error: error.message });
   });

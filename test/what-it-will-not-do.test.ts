@@ -19,16 +19,23 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { WHAT_THERE_IS } from '../src/send/transports.js';
+import { WHAT_THERE_IS } from '../src/send/transports.ts';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Every .js file under src/, read once. */
-function everythingUnderSrc(from = path.join(root, 'src')) {
+type SourceFile = { file: string; text: string };
+
+function everythingUnderSrc(from: string = path.join(root, 'src')): SourceFile[] {
   return fs.readdirSync(from, { withFileTypes: true }).flatMap((one) => {
     const full = path.join(from, one.name);
     if (one.isDirectory()) return everythingUnderSrc(full);
-    return one.name.endsWith('.js') ? [{ file: path.relative(root, full), text: fs.readFileSync(full, 'utf8') }] : [];
+    // `.ts` now, and `.js` still: the browser console under `public/` stays
+    // JavaScript because it does not go through Node, and it is exactly as
+    // much a place where a forbidden import could hide.
+    return one.name.endsWith('.ts') || one.name.endsWith('.js')
+      ? [{ file: path.relative(root, full), text: fs.readFileSync(full, 'utf8') }]
+      : [];
   });
 }
 
@@ -40,7 +47,7 @@ describe('the ways a message can leave', () => {
   it('and the default one sends nothing', async () => {
     // A default that sends is a default that goes out because somebody pressed
     // the obvious button on a screen they were reading rather than using.
-    const { dryRun } = await import('../src/send/transports.js');
+    const { dryRun } = await import('../src/send/transports.ts');
     const said = await dryRun().send({ to: 'a@example.invalid', from: { address: 'b@example.invalid' }, subject: '', body: '' });
 
     assert.match(said.why, /nothing was sent/);
@@ -58,8 +65,8 @@ describe('nothing in src/ drives a browser', () => {
   // six tests out of one `it(`, and the README check counts `it(` — so the
   // number in the README would drift from the number that runs, which is the
   // exact rot both of these files exist to stop.
-  const importsA = (driver) =>
-    sources.filter((one) => new RegExp(`(import|require)\\s*\\(?['"\`][^'"\`]*${driver}`, 'i').test(one.text)).map((one) => one.file);
+  const importsA = (driver: any) =>
+    sources.filter((one: any) => new RegExp(`(import|require)\\s*\\(?['"\`][^'"\`]*${driver}`, 'i').test(one.text)).map((one: any) => one.file);
 
   it('does not reach for puppeteer', () => assert.deepEqual(importsA('puppeteer'), []));
   it('does not reach for playwright', () => assert.deepEqual(importsA('playwright'), []));
@@ -72,9 +79,9 @@ describe('nothing in src/ drives a browser', () => {
     // The shapes a browser-driving transport takes even when the import is
     // hidden: launching a browser, waiting for a selector, clicking a thing.
     const shapes = /\b(chromium|firefox|webkit)\.launch\b|\bnewPage\s*\(|\bwaitForSelector\s*\(|\bpage\.(click|type|goto)\s*\(/;
-    const guilty = sources.filter((one) => shapes.test(one.text));
+    const guilty = sources.filter((one: any) => shapes.test(one.text));
 
-    assert.deepEqual(guilty.map((one) => one.file), []);
+    assert.deepEqual(guilty.map((one: any) => one.file), []);
   });
 });
 
@@ -94,7 +101,7 @@ describe('the page fetches nothing from anywhere', () => {
   });
 
   it('and the face it uses is in the repository, with its licence', () => {
-    const css = web.find((one) => one.file === 'console.css').text;
+    const css = web.find((one) => one.file === 'console.css')!.text;
 
     assert.match(css, /@font-face/, 'no face is declared at all, so the console falls back to whatever is installed');
 
@@ -106,7 +113,7 @@ describe('the page fetches nothing from anywhere', () => {
   });
 
   it('and the icons are drawn here rather than pulled from a set', () => {
-    const html = web.find((one) => one.file === 'index.html').text;
+    const html = web.find((one) => one.file === 'index.html')!.text;
 
     assert.ok((html.match(/class="glyph"/g) ?? []).length >= 3, 'the panels have lost their glyphs');
   });
@@ -117,7 +124,7 @@ describe('what the service will accept', () => {
     // The route checks WHAT_THERE_IS before its own map, so a transport added
     // to the map without being added to the list is unreachable rather than
     // quietly available — the right way round for this particular promise.
-    const api = fs.readFileSync(path.join(root, 'src', 'http', 'api.js'), 'utf8');
+    const api = fs.readFileSync(path.join(root, 'src', 'http', 'api.ts'), 'utf8');
 
     assert.match(api, /WHAT_THERE_IS\.includes\(which\)/);
   });

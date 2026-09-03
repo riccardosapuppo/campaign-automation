@@ -15,7 +15,8 @@
 
 import fs from 'node:fs';
 
-import { orStop } from './needs.js';
+import type { Contact } from './rules/permission.ts';
+import { orStop } from './needs.ts';
 
 /**
  * Before anything else — and this is why the three below are dynamic imports.
@@ -30,10 +31,10 @@ import { orStop } from './needs.js';
  */
 await orStop();
 
-const { store } = await import('./store/db.js');
-const { api } = await import('./http/api.js');
-const { read } = await import('./import/csv.js');
-const { openInABrowser } = await import('./open-a-browser.js');
+const { store } = await import('./store/db.ts');
+const { api } = await import('./http/api.ts');
+const { read } = await import('./import/csv.ts');
+const { openInABrowser } = await import('./open-a-browser.ts');
 
 const PORT = Number(process.env.PORT ?? 3608);
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -42,7 +43,7 @@ const SMTP_HOST = process.env.SMTP_HOST ?? '127.0.0.1';
 const SMTP_PORT = Number(process.env.SMTP_PORT ?? 3609);
 
 /** One line of JSON per event, which is what anything reading logs wants. */
-function log(level, message, detail = {}) {
+function log(level: string, message: string, detail: Record<string, unknown> = {}): void {
   process.stdout.write(`${JSON.stringify({ at: new Date().toISOString(), level, message, ...detail })}\n`);
 }
 
@@ -86,19 +87,21 @@ function fillFromSample() {
   const said = read(fs.readFileSync('samples/contacts.csv', 'utf8'));
 
   for (const contact of said.contacts) {
-    kept.remember(contact);
+    kept.remember(contact as Contact);
 
     if (contact.basis) {
       kept.record({
-        address: contact.address,
+        address: String(contact.address),
         kind: contact.basis.kind,
         recordedAt: contact.basis.recordedAt,
         source: contact.basis.source,
       });
     }
 
-    if (contact.suppressed) kept.suppress(contact.address, 'the sample file said they had unsubscribed');
+    if (contact.suppressed) {
+      kept.suppress(String(contact.address), 'the sample file said they had unsubscribed');
+    }
   }
 
-  log('info', 'sample list imported', { contacts: said.contacts.length, ...kept.counts() });
+  log('info', 'sample list imported', { imported: said.contacts.length, ...kept.counts() });
 }

@@ -18,22 +18,36 @@
  * and twelve of them sendable, and here is why the other eighty-eight are not".
  */
 
-import { mayReceive } from '../rules/permission.js';
-import { fill } from '../render/template.js';
+import type { Contact } from '../rules/permission.ts';
+import type { CampaignRow, Store } from '../store/db.ts';
+import type { Transport } from './transports.ts';
+
+export type Log = (level: string, message: string, detail?: Record<string, unknown>) => void;
+
+import { mayReceive } from '../rules/permission.ts';
+import { fill } from '../render/template.ts';
 
 /**
  * Works out who may be written to. Sends nothing.
  *
  * @returns {{ campaign: object, counted: object, refusals: object }}
  */
-export function decide({ store, campaign, contacts, now = Date.now() }) {
+export function decide({
+  store,
+  campaign,
+  contacts,
+  now = Date.now(),
+}: { store: Store; campaign: CampaignRow; contacts: Contact[]; now?: number }) {
+  // The campaign came out of the database, so its id is `unknown` until this
+  // says otherwise. Once, here, rather than at each of the four `decide` calls.
+  const campaignId = campaign.id;
   for (const contact of contacts) {
     const said = mayReceive(contact, { now });
 
     if (!said.ok) {
       store.decide({
-        campaignId: campaign.id,
-        address: contact.address,
+        campaignId,
+        address: String(contact.address),
         state: 'refused',
         why: said.why,
         code: said.code,
@@ -60,8 +74,8 @@ export function decide({ store, campaign, contacts, now = Date.now() }) {
 
     if (missing.length > 0) {
       store.decide({
-        campaignId: campaign.id,
-        address: contact.address,
+        campaignId,
+        address: String(contact.address),
         state: 'refused',
         why: `the message would have had a hole in it: nothing to put in ${missing.map((one) => `{{${one}}}`).join(', ')}`,
         code: 'a-field-is-missing',
@@ -70,8 +84,8 @@ export function decide({ store, campaign, contacts, now = Date.now() }) {
     }
 
     store.decide({
-      campaignId: campaign.id,
-      address: contact.address,
+      campaignId,
+      address: String(contact.address),
       state: 'allowed',
       why: said.why,
       subject: subject.text,
@@ -79,7 +93,7 @@ export function decide({ store, campaign, contacts, now = Date.now() }) {
     });
   }
 
-  return { campaign, ...store.howItWent(campaign.id) };
+  return { campaign, ...store.howItWent(campaignId) };
 }
 
 /**
@@ -111,7 +125,7 @@ export async function run({
    * re-check before each send, and the gap between sends.
    */
   clock = () => Date.now(),
-  wait = (ms) => new Promise((done) => setTimeout(done, ms)),
+  wait = (ms: number) => new Promise((done) => setTimeout(done, ms)),
   log = () => {},
   stopIfSuppressedSince = true,
   /**
@@ -129,9 +143,25 @@ export async function run({
    * again later without writing to anybody twice.
    */
   keepGoing = () => true,
+}: {
+  store: Store;
+  campaign: CampaignRow;
+  transport: Transport;
+  perMinute?: number;
+  clock?: () => number;
+  wait?: (ms: number) => Promise<unknown>;
+  log?: Log;
+  stopIfSuppressedSince?: boolean;
+  keepGoing?: () => boolean;
 }) {
   const gap = perMinute > 0 ? Math.floor(60_000 / perMinute) : 0;
-  const queue = store.waiting(campaign.id);
+  // The campaign came out of the database; its id and its from-fields are
+  // `unknown` until this says otherwise, once.
+  const campaignId = campaign.id;
+  const fromName = campaign.from_name;
+  const fromAddress = campaign.from_address;
+
+  const queue = store.waiting(campaignId);
 
   let sent = 0;
   let failed = 0;
@@ -157,41 +187,43 @@ export async function run({
      * a world that has moved on.
      */
     if (stopIfSuppressedSince) {
-      const contact = store.contact(message.address);
-      const said = mayReceive(contact ?? { address: message.address }, { now: clock() });
+      const address = String(message.address);
+      const contact = store.contact(address);
+      const said = mayReceive((contact ?? { address }) as Contact, { now: clock() });
 
       if (!said.ok) {
         store.decide({
-          campaignId: campaign.id,
-          address: message.address,
+          campaignId,
+          address: String(message.address),
           state: 'refused',
           why: `${said.why} (it changed after this campaign was worked out)`,
           code: said.code,
         });
         dropped += 1;
-        log('info', 'dropped before sending', { address: message.address, why: said.why });
+        log('info', 'dropped before sending', { address: String(message.address), why: said.why });
         continue;
       }
     }
 
-    store.began(message.id);
+    store.began(Number(message.id));
 
     try {
       const said = await transport.send({
-        to: message.address,
-        from: { name: campaign.from_name, address: campaign.from_address },
-        subject: message.subject,
-        body: message.body,
+        to: String(message.address),
+        from: { name: fromName, address: fromAddress },
+        subject: String(message.subject),
+        body: String(message.body),
       });
 
-      store.finished(message.id, { ok: true, why: said.why ?? 'sent' });
+      const how = said as { why?: string } | undefined;
+      store.finished(Number(message.id), { ok: true, why: how?.why ?? 'sent' });
       sent += 1;
     } catch (error) {
       // A failure is written down and the run continues. One address that a
       // server will not take must not stop the other three hundred and eleven.
-      store.finished(message.id, { ok: false, why: error.message });
+      store.finished(Number(message.id), { ok: false, why: (error instanceof Error ? error.message : String(error)) });
       failed += 1;
-      log('warn', 'would not send', { address: message.address, why: error.message });
+      log('warn', 'would not send', { address: String(message.address), why: (error instanceof Error ? error.message : String(error)) });
     }
 
     // From the START of this one, not the end.
@@ -206,5 +238,8 @@ export async function run({
   // `stopped` is not a failure, and it is not success either: it is the third
   // outcome, and a caller that only knows two of them will report one of the
   // wrong ones.
-  return { sent, failed, dropped, stopped, ...store.howItWent(campaign.id) };
+  // The store's counts first, then this run's own — a run that sent three
+  // where the campaign has sent thirty should report three, and the spread
+  // was the wrong way round for that.
+  return { ...store.howItWent(campaignId), sent, failed, dropped, stopped };
 }

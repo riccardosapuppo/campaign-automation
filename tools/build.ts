@@ -18,6 +18,8 @@
  * touched until somebody chose the folder transport.
  */
 
+import type { ChildProcess } from 'node:child_process';
+
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -29,13 +31,13 @@ const SINK = 3659;
 const SINK_WEB = 3660;
 
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'campaigns-build-'));
-const started = [];
+const started: ChildProcess[] = [];
 
 let bad = 0;
 
 try {
   await start('npm run sink', ['sink/smtp.js', String(SINK)], { SINK_WEB_PORT: String(SINK_WEB) }, SINK);
-  await start('npm start', ['src/index.js'], { PORT: String(PORT), DB: path.join(folder, 'build.db'), SMTP_PORT: String(SINK) }, PORT);
+  await start('npm start', ['src/index.ts'], { PORT: String(PORT), DB: path.join(folder, 'build.db'), SMTP_PORT: String(SINK) }, PORT);
 
   const health = await fetch(`http://127.0.0.1:${PORT}/api/health`).then((r) => r.json());
   is('the service answers about itself', health.ok, true);
@@ -61,7 +63,7 @@ process.exitCode = bad === 0 ? 0 : 1;
 
 // ---------------------------------------------------------------------------
 
-function is(what, got, wanted) {
+function is(what: string, got: unknown, wanted?: unknown): void {
   if (got === wanted) {
     console.log(`  ok    ${what}`);
     return;
@@ -71,13 +73,13 @@ function is(what, got, wanted) {
   console.log(`  NO    ${what}\n          wanted ${JSON.stringify(wanted)}, got ${JSON.stringify(got)}`);
 }
 
-async function start(what, argv, env, port) {
+async function start(what: string, argv: string[], env: NodeJS.ProcessEnv, port: number) {
   const child = spawn(process.execPath, argv, { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
   started.push(child);
 
   // Kept, not printed: a process that fails to start says why, and that is the
   // only thing worth showing out of all its output.
-  const complaints = [];
+  const complaints: string[] = [];
   child.stderr.on('data', (chunk) => complaints.push(String(chunk)));
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -86,7 +88,7 @@ async function start(what, argv, env, port) {
       return child;
     }
     if (child.exitCode !== null) break;
-    await new Promise((done) => setTimeout(done, 50));
+    await new Promise<void>((done) => setTimeout(done, 50));
   }
 
   bad += 1;
@@ -104,10 +106,10 @@ async function start(what, argv, env, port) {
  * is a libuv assertion rather than a tidy exit — and it prints after the last
  * line of output, so it reads like the check itself failed.
  */
-function gone(child) {
+function gone(child: ChildProcess) {
   if (child.exitCode !== null) return null;
 
-  return new Promise((done) => {
+  return new Promise<void>((done) => {
     const impatient = setTimeout(() => {
       child.kill('SIGKILL');
       done();
@@ -122,8 +124,8 @@ function gone(child) {
   });
 }
 
-function answering(port) {
-  return new Promise((done) => {
+function answering(port: number) {
+  return new Promise<boolean>((done) => {
     const socket = net.createConnection({ host: '127.0.0.1', port });
     socket.once('connect', () => {
       socket.destroy();

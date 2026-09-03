@@ -9,10 +9,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { store } from '../src/store/db.js';
-import { mayReceive } from '../src/rules/permission.js';
+import { store } from '../src/store/db.ts';
+import { mayReceive } from '../src/rules/permission.ts';
 
-const anna = { address: 'anna@example.invalid', name: 'Anna', fields: { company: 'Harbour Clinic' } };
+const anna = { address: 'anna@example.invalid', name: 'Anna', fields: { company: 'Harbour Clinic' }, basis: null, suppressed: false, suppressedWhy: null };
 
 function fresh() {
   return store({ file: ':memory:' });
@@ -31,9 +31,9 @@ describe('a contact', () => {
 
     const said = kept.contact(anna.address);
 
-    assert.equal(said.basis.kind, 'consent');
-    assert.equal(said.suppressed, false);
-    assert.equal(mayReceive(said, { now: Date.parse('2026-09-01') }).ok, true);
+    assert.equal(said!.basis!.kind, 'consent');
+    assert.equal(said!.suppressed, false);
+    assert.equal(mayReceive(said!, { now: Date.parse('2026-09-01') }).ok, true);
 
     kept.close();
   });
@@ -50,8 +50,8 @@ describe('a contact', () => {
     kept.remember({ ...anna, name: 'Anna Rossi', fields: { company: 'Harbour Clinic Ltd' } });
 
     const said = kept.contact(anna.address);
-    assert.equal(said.name, 'Anna Rossi');
-    assert.equal(said.basis.source, 'the form');
+    assert.equal(said!.name, 'Anna Rossi');
+    assert.equal(said!.basis!.source, 'the form');
 
     kept.close();
   });
@@ -63,7 +63,7 @@ describe('a contact', () => {
       kept.record({ address: anna.address, kind: 'consent', recordedAt: '2026-03-01', source: 'the form' });
     }
 
-    assert.equal(kept.counts().bases, 1);
+    assert.equal(kept!.counts().bases, 1);
     kept.close();
   });
 });
@@ -79,7 +79,7 @@ describe('why somebody may be contacted', () => {
     kept.record({ address: anna.address, kind: 'legitimate-interest', recordedAt: '2025-06-01', source: 'an order' });
     kept.record({ address: anna.address, kind: 'consent', recordedAt: '2026-03-01', source: 'the new form' });
 
-    assert.equal(kept.historyOf(anna.address).bases.length, 3);
+    assert.equal(kept!.historyOf(anna.address).bases.length, 3);
     kept.close();
   });
 
@@ -90,7 +90,7 @@ describe('why somebody may be contacted', () => {
     kept.record({ address: anna.address, kind: 'consent', recordedAt: '2024-01-01', source: 'the old form' });
     kept.record({ address: anna.address, kind: 'consent', recordedAt: '2026-03-01', source: 'the new form' });
 
-    assert.equal(kept.contact(anna.address).basis.source, 'the new form');
+    assert.equal(kept.contact(anna.address)!.basis!.source, 'the new form');
     kept.close();
   });
 });
@@ -106,14 +106,14 @@ describe('somebody who asked to stop', () => {
     kept.suppress(anna.address, 'they replied STOP');
 
     kept.db.exec(`DELETE FROM contacts WHERE address = '${anna.address}'`);
-    assert.equal(kept.contact(anna.address), null);
+    assert.equal(kept!.contact(anna.address), null);
 
     kept.remember(anna);
     kept.record({ address: anna.address, kind: 'consent', recordedAt: '2026-03-01', source: 'the form' });
 
     const said = kept.contact(anna.address);
-    assert.equal(said.suppressed, true);
-    assert.equal(mayReceive(said).ok, false);
+    assert.equal(said!.suppressed, true);
+    assert.equal(mayReceive(said!).ok, false);
 
     kept.close();
   });
@@ -124,8 +124,8 @@ describe('somebody who asked to stop', () => {
     const kept = fresh();
     kept.suppress('stranger@example.invalid', 'they wrote in');
 
-    kept.remember({ address: 'stranger@example.invalid', fields: {} });
-    assert.equal(kept.contact('stranger@example.invalid').suppressed, true);
+    kept.remember({ basis: null, suppressed: false, suppressedWhy: null, address: 'stranger@example.invalid', fields: {} });
+    assert.equal(kept.contact('stranger@example.invalid')!.suppressed, true);
 
     kept.close();
   });
@@ -142,19 +142,19 @@ describe('a campaign', () => {
       fromAddress: 'us@example.invalid',
     });
 
-    kept.decide({ campaignId: campaign.id, address: 'a@example.invalid', state: 'allowed', why: 'consent' });
+    kept.decide({ campaignId: campaign!.id, address: 'a@example.invalid', state: 'allowed', why: 'consent' });
     kept.decide({
-      campaignId: campaign.id,
+      campaignId: campaign!.id,
       address: 'b@example.invalid',
       state: 'refused',
       why: 'no basis',
       code: 'no-basis',
     });
 
-    const said = kept.howItWent(campaign.id);
-    assert.equal(said.allowed, 1);
-    assert.equal(said.refused, 1);
-    assert.deepEqual(said.refusals, { 'no-basis': 1 });
+    const said = kept.howItWent(campaign!.id);
+    assert.equal(said!.allowed, 1);
+    assert.equal(said!.refused, 1);
+    assert.deepEqual(said!.refusals, { 'no-basis': 1 });
 
     kept.close();
   });
@@ -171,10 +171,10 @@ describe('a campaign', () => {
       fromAddress: 'us@example.invalid',
     });
 
-    kept.decide({ campaignId: campaign.id, address: 'a@example.invalid', state: 'allowed', why: 'consent' });
-    kept.decide({ campaignId: campaign.id, address: 'a@example.invalid', state: 'allowed', why: 'consent' });
+    kept.decide({ campaignId: campaign!.id, address: 'a@example.invalid', state: 'allowed', why: 'consent' });
+    kept.decide({ campaignId: campaign!.id, address: 'a@example.invalid', state: 'allowed', why: 'consent' });
 
-    assert.equal(kept.forCampaign(campaign.id).length, 1);
+    assert.equal(kept!.forCampaign(campaign!.id).length, 1);
     kept.close();
   });
 });

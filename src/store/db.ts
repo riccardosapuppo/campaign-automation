@@ -21,75 +21,56 @@
  * again. So suppressions are keyed on the address and outlive any contact row.
  */
 
+import { readFileSync } from 'node:fs';
+
 import { DatabaseSync } from 'node:sqlite';
+import type { Contact } from '../rules/permission.ts';
+
 import fs from 'node:fs';
 import path from 'node:path';
 
-const SCHEMA = `
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
+/**
+ * The schema, read from the file next to this one.
+ *
+ * `schema.sql` rather than a template literal: it argues better as a file
+ * something can open, colour and diff than as a string inside a module.
+ */
+const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8');
 
-  CREATE TABLE IF NOT EXISTS contacts (
-    id          INTEGER PRIMARY KEY,
-    address     TEXT NOT NULL UNIQUE,
-    name        TEXT,
-    fields      TEXT NOT NULL DEFAULT '{}',   -- whatever else the import had
-    added_at    TEXT NOT NULL
-  );
+/**
+ * A campaign, as the database holds it.
+ *
+ * Named because four other files take one as an argument, and passing them a
+ * shapeless row meant every one of them had to say `Number(campaign.id)` and
+ * hope. The index signature is honest: the table has more columns than these
+ * and nothing here promises to know them all.
+ */
+export type CampaignRow = {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  from_name: string;
+  from_address: string;
+  [more: string]: unknown;
+};
 
-  -- Append-only. Somebody agreeing, withdrawing and agreeing again leaves three
-  -- rows; the current answer is the newest.
-  CREATE TABLE IF NOT EXISTS bases (
-    id          INTEGER PRIMARY KEY,
-    address     TEXT NOT NULL,
-    kind        TEXT NOT NULL,                -- consent | legitimate-interest
-    recorded_at TEXT NOT NULL,
-    source      TEXT NOT NULL,                -- where it came from, checkable
-    text        TEXT,                         -- what they were actually shown
-    noted_at    TEXT NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS bases_by_address ON bases (address, recorded_at DESC);
+/** How a campaign is going: one count per state, and why the refusals were. */
+export type HowItWent = {
+  allowed: number;
+  refused: number;
+  sending: number;
+  sent: number;
+  failed: number;
+  refusals: Record<string, number>;
+};
 
-  -- Keyed on the address, never on a contact id: a contact row can be deleted
-  -- and re-imported, and the suppression has to survive that.
-  CREATE TABLE IF NOT EXISTS suppressions (
-    address     TEXT PRIMARY KEY,
-    why         TEXT NOT NULL,
-    at          TEXT NOT NULL
-  );
+export type Store = ReturnType<typeof store>;
 
-  CREATE TABLE IF NOT EXISTS campaigns (
-    id          INTEGER PRIMARY KEY,
-    name        TEXT NOT NULL,
-    subject     TEXT NOT NULL,
-    body        TEXT NOT NULL,
-    from_name   TEXT NOT NULL,
-    from_address TEXT NOT NULL,
-    created_at  TEXT NOT NULL
-  );
-
-  -- One row per person per campaign, written BEFORE anything is sent and
-  -- updated after. A row that says "sending" and never changed is a message
-  -- that may or may not have gone out, which is the honest state to be in after
-  -- a process is killed — and is exactly what a row written afterwards cannot
-  -- express.
-  CREATE TABLE IF NOT EXISTS messages (
-    id          INTEGER PRIMARY KEY,
-    campaign_id INTEGER NOT NULL REFERENCES campaigns (id),
-    address     TEXT NOT NULL,
-    state       TEXT NOT NULL,                -- allowed | refused | sending | sent | failed
-    why         TEXT,                         -- what allowed it, or what refused it
-    code        TEXT,                         -- the refusal, for counting
-    subject     TEXT,
-    body        TEXT,
-    at          TEXT NOT NULL,
-    finished_at TEXT,
-    UNIQUE (campaign_id, address)
-  );
-  CREATE INDEX IF NOT EXISTS messages_by_campaign ON messages (campaign_id, state);
-`;
-
-export function store({ file = ':memory:', at = () => new Date().toISOString() } = {}) {
+export function store({
+  file = ':memory:',
+  at = () => new Date().toISOString(),
+}: { file?: string; at?: () => string } = {}) {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
 
   const db = new DatabaseSync(file);
@@ -111,7 +92,7 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
      * to. The name and the fields are overwritten; the reason they may be
      * contacted is not, because it is not in this table.
      */
-    remember(contact) {
+    remember(contact: Contact) {
       db.prepare(
         `INSERT INTO contacts (address, name, fields, added_at) VALUES (?, ?, ?, ?)
          ON CONFLICT (address) DO UPDATE SET name = excluded.name, fields = excluded.fields`
@@ -130,7 +111,13 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
      * agreement; it would be the same agreement counted again, which is exactly
      * the sort of thing an audit trail is supposed not to do.
      */
-    record({ address, kind, recordedAt, source, text = null }) {
+    record({
+      address,
+      kind,
+      recordedAt,
+      source,
+      text = null,
+    }: { address: string; kind: string; recordedAt: string | null; source: string | null; text?: string | null }) {
       const already = db
         .prepare('SELECT id FROM bases WHERE address = ? AND kind = ? AND recorded_at = ? AND source = ?')
         .get(address, kind, recordedAt, source);
@@ -146,7 +133,7 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
     },
 
     /** Somebody asked to stop, or a message bounced for good. */
-    suppress(address, why) {
+    suppress(address: string, why: string) {
       db.prepare(
         `INSERT INTO suppressions (address, why, at) VALUES (?, ?, ?)
          ON CONFLICT (address) DO UPDATE SET why = excluded.why, at = excluded.at`
@@ -160,7 +147,7 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
      * for those separately is how a check ends up being made against a contact
      * that was suppressed between the two questions.
      */
-    contact(address) {
+    contact(address: string) {
       const row = db
         .prepare(
           `SELECT c.address, c.name, c.fields,
@@ -180,7 +167,7 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
       return row ? asContact(row) : null;
     },
 
-    everybody({ limit = 5000 } = {}) {
+    everybody({ limit = 5000 }: { limit?: number } = {}) {
       return db
         .prepare(
           `SELECT c.address, c.name, c.fields,
@@ -201,7 +188,7 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
     },
 
     /** Everything ever recorded about one person, for when they ask. */
-    historyOf(address) {
+    historyOf(address: string) {
       return {
         address,
         bases: db.prepare('SELECT * FROM bases WHERE address = ? ORDER BY recorded_at').all(address),
@@ -218,19 +205,26 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
 
     // ----------------------------------------------------------- campaigns
 
-    createCampaign({ name, subject, body, fromName, fromAddress }) {
+    createCampaign({
+      name,
+      subject,
+      body,
+      fromName,
+      fromAddress,
+    }: { name: string; subject: string; body: string; fromName: string; fromAddress: string }) {
       const created = db
         .prepare(
           `INSERT INTO campaigns (name, subject, body, from_name, from_address, created_at)
            VALUES (?, ?, ?, ?, ?, ?) RETURNING *`
         )
-        .get(name, subject, body, fromName, fromAddress, now());
+        .get(name, subject, body, fromName, fromAddress, now()) as CampaignRow;
 
       return created;
     },
 
-    campaign: (id) => db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id) ?? null,
-    campaigns: () => db.prepare('SELECT * FROM campaigns ORDER BY id DESC').all(),
+    campaign: (id: number) =>
+      (db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id) as CampaignRow | undefined) ?? null,
+    campaigns: () => db.prepare('SELECT * FROM campaigns ORDER BY id DESC').all() as CampaignRow[],
 
     // ------------------------------------------------------------ messages
 
@@ -241,7 +235,23 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
      * cannot answer "why did this person not get it", which is the question
      * somebody always asks.
      */
-    decide({ campaignId, address, state, why, code = null, subject = null, body = null }) {
+    decide({
+      campaignId,
+      address,
+      state,
+      why,
+      code = null,
+      subject = null,
+      body = null,
+    }: {
+      campaignId: number;
+      address: string;
+      state: string;
+      why: string;
+      code?: string | null;
+      subject?: string | null;
+      body?: string | null;
+    }) {
       return db
         .prepare(
           `INSERT INTO messages (campaign_id, address, state, why, code, subject, body, at)
@@ -253,9 +263,9 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
         .get(campaignId, address, state, why, code, subject, body, now());
     },
 
-    began: (id) => db.prepare("UPDATE messages SET state = 'sending' WHERE id = ?").run(id),
+    began: (id: number) => db.prepare("UPDATE messages SET state = 'sending' WHERE id = ?").run(id),
 
-    finished(id, { ok, why }) {
+    finished(id: number, { ok, why }: { ok: boolean; why: string }) {
       db.prepare('UPDATE messages SET state = ?, why = ?, finished_at = ? WHERE id = ?').run(
         ok ? 'sent' : 'failed',
         why,
@@ -264,51 +274,66 @@ export function store({ file = ':memory:', at = () => new Date().toISOString() }
       );
     },
 
-    waiting: (campaignId) =>
+    waiting: (campaignId: number) =>
       db
         .prepare("SELECT * FROM messages WHERE campaign_id = ? AND state IN ('allowed', 'sending') ORDER BY id")
         .all(campaignId),
 
-    forCampaign: (campaignId) =>
+    forCampaign: (campaignId: number) =>
       db.prepare('SELECT * FROM messages WHERE campaign_id = ? ORDER BY id').all(campaignId),
 
     /** How a campaign went, in the words somebody would use about it. */
-    howItWent(campaignId) {
+    howItWent(campaignId: number) {
       const rows = db
         .prepare('SELECT state, code, count(*) AS howMany FROM messages WHERE campaign_id = ? GROUP BY state, code')
         .all(campaignId);
 
-      const counted = { allowed: 0, refused: 0, sending: 0, sent: 0, failed: 0 };
-      const refusals = {};
+      const counted: Record<string, number> = { allowed: 0, refused: 0, sending: 0, sent: 0, failed: 0 };
+      const refusals: Record<string, number> = {};
 
       for (const row of rows) {
-        counted[row.state] = (counted[row.state] ?? 0) + row.howMany;
-        if (row.state === 'refused' && row.code) refusals[row.code] = row.howMany;
+        const state = String(row.state);
+        counted[state] = (counted[state] ?? 0) + Number(row.howMany);
+        if (state === 'refused' && row.code) refusals[String(row.code)] = Number(row.howMany);
       }
 
-      return { ...counted, refusals };
+      return { ...counted, refusals } as HowItWent;
     },
 
-    counts: () => ({
-      contacts: db.prepare('SELECT count(*) AS n FROM contacts').get().n,
-      bases: db.prepare('SELECT count(*) AS n FROM bases').get().n,
-      suppressed: db.prepare('SELECT count(*) AS n FROM suppressions').get().n,
-      campaigns: db.prepare('SELECT count(*) AS n FROM campaigns').get().n,
-      messages: db.prepare('SELECT count(*) AS n FROM messages').get().n,
-    }),
+    counts: () => {
+      // One helper rather than five identical casts: `get()` cannot know what a
+      // SELECT returns, and saying so once is the whole of the concession.
+      const howMany = (table: string): number =>
+        Number((db.prepare(`SELECT count(*) AS n FROM ${table}`).get() as { n: number }).n);
+
+      return {
+        contacts: howMany('contacts'),
+        bases: howMany('bases'),
+        suppressed: howMany('suppressions'),
+        campaigns: howMany('campaigns'),
+        messages: howMany('messages'),
+      };
+    },
   };
 }
 
 /** A database row, in the shape `mayReceive` reads. */
-function asContact(row) {
+function asContact(row: Record<string, unknown>): Contact {
+  const text = (value: unknown): string | null =>
+    value === null || value === undefined ? null : String(value);
+
   return {
-    address: row.address,
-    name: row.name,
-    fields: JSON.parse(row.fields ?? '{}'),
+    address: text(row.address),
+    name: text(row.name),
+    fields: JSON.parse(String(row.fields ?? '{}')),
     basis: row.basis_kind
-      ? { kind: row.basis_kind, recordedAt: row.basis_recorded_at, source: row.basis_source }
+      ? {
+          kind: String(row.basis_kind),
+          recordedAt: text(row.basis_recorded_at),
+          source: text(row.basis_source),
+        }
       : null,
     suppressed: row.suppressed_why !== null && row.suppressed_why !== undefined,
-    suppressedWhy: row.suppressed_why ?? null,
+    suppressedWhy: text(row.suppressed_why),
   };
 }

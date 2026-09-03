@@ -14,11 +14,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { NEEDS_NODE, runtimeIsUsable } from '../src/needs.js';
+import { NEEDS_NODE, runtimeIsUsable } from '../src/needs.ts';
 
 /** What Node's loader actually throws when a built-in is not there. */
-function missing() {
-  const error = new Error('No such built-in module: node:sqlite');
+function missing(): never {
+  const error = new Error('No such built-in module: node:sqlite') as NodeJS.ErrnoException;
   error.code = 'ERR_UNKNOWN_BUILTIN_MODULE';
   throw error;
 }
@@ -67,7 +67,7 @@ describe('what it needs to run', () => {
     // for an afternoon.
     await assert.rejects(
       runtimeIsUsable({
-        load: () => {
+        load: async () => {
           throw new TypeError('something else entirely');
         },
       }),
