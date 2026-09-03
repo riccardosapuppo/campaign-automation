@@ -201,10 +201,12 @@ phone numbers into; step one here is a **count**, and there is nowhere to type a
 address at all. Everybody a campaign reaches got onto the list through a file
 with a consent date in it, and a box to paste into would be the hole in that.
 
-Then **work it out**, then **send it** — and the first of those takes no transport at Not "takes one and does not use it": there is nothing it could send with,
-which is the only version of that promise that survives somebody editing the
-file. It writes down a decision for everybody, refusals included, with the
-reason and the rendered message, so what is approved is what goes.
+Then **work it out**, then **send it** — and the first of those takes no
+transport at all. Not "takes one and does not use it": there is nothing it
+could send with, which is the only version of that promise that survives
+somebody editing the file. It writes down a decision for everybody, refusals
+included, with the reason and the rendered message, so what is approved is what
+goes.
 
 Only then is a transport chosen, and the default is the one that sends nothing:
 
