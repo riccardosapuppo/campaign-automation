@@ -87,7 +87,11 @@ jobs:
   # frames inside the module loader, which is what they saw before.
   refuses-politely-on-an-old-node:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Twelve, not five. `npm ci` on an old Node took the whole of five minutes
+    # by itself — "added 81 packages in 5m" — and the job was cancelled before
+    # the check it exists for had run at all. A timeout that fires on the setup
+    # rather than on the thing being tested reports nothing.
+    timeout-minutes: 12
 
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +99,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.5'
+
+      # ── first, with nothing installed at all ────────────────────────────
+      #
+      # The strongest version of this check, and the fastest. Somebody who
+      # clones this and types `npm start` before anything else has an empty
+      # node_modules and an old Node, and the refusal has to reach them there —
+      # which is the whole reason `start.js` is plain JavaScript rather than
+      # TypeScript like the rest of it.
+      - name: it says what is missing before anything is installed
+        run: |
+          set +e
+          out=$(node start.js 2>&1)
+          code=$?
+          set -e
+
+          echo "$out"
+
+          if [ "$code" -eq 0 ]; then
+            echo "FAIL: it started on a Node that cannot run it"
+            exit 1
+          fi
+
+          echo "$out" | grep -q "needs Node 24 or newer"             || { echo "FAIL: the refusal does not say which version is needed"; exit 1; }
 
       # --engine-strict=false on purpose. npm's refusal is the first line of
       # defence; this job is about the second one — what happens to somebody who
