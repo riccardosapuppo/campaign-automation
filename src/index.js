@@ -33,6 +33,7 @@ await orStop();
 const { store } = await import('./store/db.js');
 const { api } = await import('./http/api.js');
 const { read } = await import('./import/csv.js');
+const { openInABrowser } = await import('./open-a-browser.js');
 
 const PORT = Number(process.env.PORT ?? 3608);
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -58,6 +59,11 @@ const server = app.listen(PORT, HOST, () => {
     smtp: `${SMTP_HOST}:${SMTP_PORT}, used only if a campaign is sent over SMTP`,
     ...kept.counts(),
   });
+
+  // The console, in front of whoever started this. Never in CI, never without
+  // a terminal, never when told not to: see `open-a-browser.js`.
+  const browser = openInABrowser(`http://${HOST}:${PORT}/`);
+  log('info', browser.opened ? 'the console is open' : 'the console was not opened', { why: browser.why });
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

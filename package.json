@@ -8,7 +8,8 @@
   "license": "MIT",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node tools/run-both.mjs",
+    "service": "node src/index.js",
     "sink": "node sink/smtp.js",
     "build": "node tools/build.mjs",
     "test": "node --test",

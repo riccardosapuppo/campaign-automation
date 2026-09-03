@@ -76,17 +76,31 @@ and no service is registered.
 
 ## Run it
 
-Two terminals, and nothing else. No account, no provider, no API key, and no
+One command, and nothing else. No account, no provider, no API key, and no
 possibility of a test campaign reaching a real person.
 
 ```bash
 npm install
-
-npm run sink     # an SMTP server that accepts mail and delivers it nowhere
-npm start        # the service and the console
+npm start
 ```
 
-Then open **http://127.0.0.1:3608** and press **Use the sample list**.
+One command. It starts the SMTP sink, waits until it is listening, starts the
+service, and **opens the console** on http://127.0.0.1:3608. Press **Use the
+sample list** and you have a campaign to send.
+
+The browser is not opened in CI, with no terminal attached, or with
+`--no-open` (or `NO_OPEN=1`), and it says which of those happened.
+
+### The two halves, separately
+
+```bash
+npm run sink     # just the SMTP server that accepts mail and delivers it nowhere
+npm run service  # just the service, for pointing at a real SMTP host
+```
+
+The second is not only for debugging. **Somebody with a real relay should not
+have to start a fake one first**, and `SMTP_HOST`/`SMTP_PORT` are what point
+it at theirs.
 
 | what | where |
 | --- | --- |
@@ -247,7 +261,7 @@ from the same spreadsheet, arrive with no history, and are written to again.
 Five layers, and each one has caught something the others could not.
 
 ```bash
-npm test              # 120  the rules, the importer, the template, the store
+npm test              # 126  the rules, the importer, the template, the store
 npm run walkthrough   #  36  the whole story through HTTP, against a live service
 npm run check:screen  #  31  the console, driven with a browser
 npm run check:smtp    #  13  against an SMTP server nobody here wrote
