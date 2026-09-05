@@ -20,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { claims } from '../tools/what-the-readme-claims.ts';
+import { AGREES_WITHIN, claimedCosts, megabytesInNodeModules, megabytesInTheRepository, packagesInTheLock } from '../tools/what-it-costs.ts';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
@@ -145,5 +146,51 @@ describe('what the README promises about the runtime', () => {
     for (const one of stale) {
       assert.match(one, new RegExp(`Node ${declared} or newer`), `the README still promises ${one}`);
     }
+  });
+});
+
+describe('what the README says this costs to install', () => {
+  // "Measured, not estimated" is what the paragraph calls itself, and it was
+  // neither: 68 packages against the 81 in the lock file, 17 MB of
+  // node_modules against 42.2 on the disk, 2.3 MB of repository against 2.6.
+  // Nothing had gone wrong — the figures were true when they were written, and
+  // then a dependency arrived. A size in prose only stays true by accident.
+  const said = claimedCosts();
+
+  it('is still written in a way this test can read', () => {
+    // Three regexes over one sentence somebody will eventually rewrite. If one
+    // of them stops matching, the figure it was holding to account silently
+    // stops being held to account, which is worse than the figure being wrong.
+    const unread = Object.entries(said)
+      .filter(([, one]) => one === undefined)
+      .map(([which]) => which);
+
+    assert.deepEqual(unread, [], `the "Measured, not estimated" paragraph no longer states: ${unread.join(', ')}`);
+  });
+
+  it('and names as many packages as the lock file has npm fetch', () => {
+    assert.equal(
+      said.packages,
+      packagesInTheLock(),
+      `the README says npm install fetches ${said.packages} packages; the lock file lists ${packagesInTheLock()}`
+    );
+  });
+
+  it('and the size it gives for node_modules is the size that is there', () => {
+    const measured = megabytesInNodeModules();
+
+    assert.ok(
+      Math.abs(measured - said.nodeModules!) <= AGREES_WITHIN,
+      `the README says node_modules is ${said.nodeModules} MB; it is ${measured.toFixed(1)} MB`
+    );
+  });
+
+  it('and the size it gives for the repository is what git is tracking', () => {
+    const measured = megabytesInTheRepository();
+
+    assert.ok(
+      Math.abs(measured - said.repository!) <= AGREES_WITHIN,
+      `the README says the repository is ${said.repository} MB; it is ${measured.toFixed(1)} MB`
+    );
   });
 });

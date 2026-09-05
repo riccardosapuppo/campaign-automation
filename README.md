@@ -63,10 +63,17 @@ failing later — there is nothing npm could install that would fix it.
 | `npm run check:smtp` | **Docker** | it sends to Mailpit, a mail catcher nobody here wrote |
 | `npm run check:screen`, `check:mark`, `screenshots` | **Microsoft Edge** | they drive the browser already on this machine (`channel: 'msedge'`) rather than downloading one. Not any Chromium: that is the channel they ask for by name, and they say so and exit if it is not there |
 
-**Measured, not estimated:** `npm install` fetches 68 packages and writes
-**17 MB** into `node_modules`; the repository itself is **2.3 MB** including the
-screenshots. `npm run check:smtp` pulls `axllent/mailpit:v1.21` once, which is
-**12 MB**. Nothing else touches the network, ever.
+**Measured, not estimated:** `npm install` fetches 81 packages and writes
+**42.2 MB** into `node_modules` — most of it TypeScript and the browser driver,
+which check this rather than run it; the repository itself is **2.6 MB**
+including the screenshots. `npm run check:smtp` pulls `axllent/mailpit:v1.21`
+once, which is **12 MB**. Nothing else touches the network, ever.
+
+The first three of those are not typed here and then maintained. `npm test`
+counts the packages out of the lock file, weighs both directories, and fails
+when this sentence and the disk stop agreeing — a size written into a paragraph
+is true on the day it is written and afterwards only by luck. This one said 68,
+17 MB and 2.3 MB until something measured it.
 
 **What you do *not* need:** no account, no API key, no mail provider, no
 database server, no SMTP relay, no cloud anything. There is no configuration
@@ -270,7 +277,7 @@ from the same spreadsheet, arrive with no history, and are written to again.
 Five layers, and each one has caught something the others could not.
 
 ```bash
-npm test              # 128  the rules, the importer, the template, the store
+npm test              # 132  the rules, the importer, the template, the store
 npm run typecheck    #     the types, and that Node still runs this without a build
 npm run walkthrough   #  36  the whole story through HTTP, against a live service
 npm run check:screen  #  31  the console, driven with a browser
