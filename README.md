@@ -7,7 +7,7 @@ stop.**
 Not "warns you". Not "has a setting for it". The permission check lives inside
 the only function in the project that emits anything, it is asked once per
 recipient with no batch shortcut, and it is asked *again* immediately before
-each send — because a campaign of four hundred at thirty a minute takes a
+each send, because a campaign of four hundred at thirty a minute takes a
 quarter of an hour, and somebody who unsubscribes in minute two must not be
 written to in minute nine.
 
@@ -22,12 +22,13 @@ independent reimplementation, written from scratch with synthetic data.
 
 It stands further from its original than the others in this portfolio, and that
 is worth saying plainly rather than leaving to be noticed. The tool this comes
-from sent its messages by driving a web messaging client with a browser; take
-that away — and it had to go, for the reasons under
-[What it deliberately does not do](#what-it-deliberately-does-not-do) — and what
-remains is a different program with the same purpose. The one idea carried
-across is working out what the columns of an exported spreadsheet mean. The rest
-of this answers a question the original never asked: *may we send this at all?*
+from sent its messages by driving a web messaging client with a browser, and
+that had to go for the reasons under
+[What it deliberately does not do](#what-it-deliberately-does-not-do); take it
+away and what remains is a different program with the same purpose. The one
+idea carried across is working out what the columns of an exported spreadsheet
+mean. The rest of this answers a question the original never asked: *may we
+send this at all?*
 
 ![The console](docs/the-console.png)
 
@@ -45,16 +46,16 @@ strip, so `npm run typecheck` is not only a check on the types — it is the
 check that this still runs without a build.
 
 That number is not a guess and it is not "the version I happened to have". The
-database is [`node:sqlite`](https://nodejs.org/api/sqlite.html), which is part
-of Node rather than a dependency — but only from a certain version. This README
+database is [`node:sqlite`](https://nodejs.org/api/sqlite.html), part of
+Node rather than a dependency, but only from a certain version. This README
 said **22.5** until continuous integration ran the project on 22.5 and it died
 inside the module loader: on Node 22 `node:sqlite` exists only behind
 `--experimental-sqlite`, which is not the same as existing. A CI job now runs it
 on 22.5 on purpose and asserts that what a person sees is a sentence saying
 which version is needed, so the number above cannot drift back into a claim.
 
-`npm install` refuses on an older Node rather than installing happily and
-failing later — there is nothing npm could install that would fix it.
+On an older Node, `npm install` refuses rather than installing happily and
+failing later; nothing npm could install would fix it.
 
 | to run | you need | why |
 | --- | --- | --- |
@@ -64,22 +65,22 @@ failing later — there is nothing npm could install that would fix it.
 | `npm run check:screen`, `check:mark`, `screenshots` | **Microsoft Edge** | they drive the browser already on this machine (`channel: 'msedge'`) rather than downloading one. Not any Chromium: that is the channel they ask for by name, and they say so and exit if it is not there |
 
 **Measured, not estimated:** `npm install` fetches 81 packages and writes
-**42.2 MB** into `node_modules` — most of it TypeScript and the browser driver,
+**42.2 MB** into `node_modules`, mostly TypeScript and the browser driver,
 which check this rather than run it; the repository itself is **2.6 MB**
 including the screenshots. `npm run check:smtp` pulls `axllent/mailpit:v1.21`
 once, which is **12 MB**. Nothing else touches the network, ever.
 
-The first three of those are not typed here and then maintained. `npm test`
-counts the packages out of the lock file, weighs both directories, and fails
-when this sentence and the disk stop agreeing — a size written into a paragraph
-is true on the day it is written and afterwards only by luck. This one said 68,
+The first three of those are not typed here and then maintained. A size in a
+paragraph is true on the day it is written and afterwards only by luck, so
+`npm test` counts the packages out of the lock file, weighs both directories,
+and fails when this sentence and the disk stop agreeing. This one said 68,
 17 MB and 2.3 MB until something measured it.
 
 **What you do *not* need:** no account, no API key, no mail provider, no
 database server, no SMTP relay, no cloud anything. There is no configuration
 file to fill in. Every address in this repository ends in `.invalid`, which
 [RFC 2606](https://www.rfc-editor.org/rfc/rfc2606) reserves and no mail server
-will ever deliver to — a CI step fails the build if one appears that does not.
+will ever deliver to, and a CI step fails the build if one does not.
 
 **To put the machine back:** delete `node_modules/` and `data/` (the whole
 database is a file in there), and `docker image rm axllent/mailpit:v1.21` if you
@@ -136,16 +137,16 @@ way up, if you would rather not press anything.
 ![The list](docs/the-list.png)
 
 Ten people go in; six may be written to and four may not, and the page says
-which and why for every one of them. The reason is the point — a tool that
+which and why for every one of them. The reason is the point: a tool that
 answers "412 sent, 88 skipped" cannot answer *why did this person not get it*,
 which is the question somebody always asks, usually in front of a customer.
 
 The four refusals in the sample are the four that actually happen:
 
 - **nothing was recorded** about why this person may be contacted
-- **the consent is too old** — the last thing on file is from 2020
-- **they are on the suppression list** — the imported file said so
-- **the message would have had a hole in it** — the template wants a field this
+- **the consent is too old**: the last thing on file is from 2020
+- **they are on the suppression list**: the imported file said so
+- **the message would have had a hole in it**: the template wants a field this
   contact has not got
 
 That last one is not about permission at all. It is about "Hello {{name}}"
@@ -166,9 +167,9 @@ Two things it does that are worth arguing about:
   sent. Dropping the row would hide the work. Importing them as sendable is the
   whole failure this project is against.
 - `01/03/2026` is read as the first of March. `Date.parse` reads it as the third
-  of January, because it assumes the one country that writes the month first —
-  and two months of drift is the difference between a consent that is current
-  and one that is stale.
+  of January, because it assumes the one country that writes the month first;
+  two months of drift is the difference between a consent that is current and
+  one that is stale.
 
 ---
 
@@ -176,7 +177,7 @@ Two things it does that are worth arguing about:
 
 ![A reply](docs/a-reply.png)
 
-This is where an unsubscribe actually arrives — not through a form, but as
+This is where an unsubscribe actually arrives, not through a form, but as
 somebody replying to the message. Reading it automatically is the difference
 between honouring the request in seconds and honouring it whenever somebody
 next gets round to the inbox.
@@ -184,11 +185,11 @@ next gets round to the inbox.
 The decision is silently wrong in **both** directions, so it is made in two
 parts and both are tested:
 
-- **Bare keywords** — `stop`, `end`, `quit`, `unsub` — count only when they are
+- **Bare keywords** (`stop`, `end`, `quit`, `unsub`) count only when they are
   the whole message. That is how they work on every network that has them, and
   it is what stops *"We are non-stop until Friday, can you deliver then?"* from
   quietly unsubscribing a customer who was telling you about their week.
-- **Phrases** — "unsubscribe", "remove me", "take me off", "disiscrivimi" —
+- **Phrases** ("unsubscribe", "remove me", "take me off", "disiscrivimi")
   count wherever they appear, because nobody writes those by accident.
 
 The first version matched `\bstop\b` anywhere. It read "non-stop" as an
@@ -207,7 +208,7 @@ customer without anybody noticing. Neither is a thing to leave unexplained.
 The shape of this screen is traced from the tool it was rebuilt from, which laid
 its send out as **1 / 2 / 3**, with the send button carrying the last number and
 staying dead until the first two were done. Numbered markers usually decorate a
-page; here they are true — it is a sequence, and doing step three first is the
+page; here they are true, a sequence in which doing step three first is the
 mistake the layout exists to prevent.
 
 One step is deliberately different. Step one of the original was a box to paste
@@ -215,7 +216,7 @@ phone numbers into; step one here is a **count**, and there is nowhere to type a
 address at all. Everybody a campaign reaches got onto the list through a file
 with a consent date in it, and a box to paste into would be the hole in that.
 
-Then **work it out**, then **send it** — and the first of those takes no
+Then **work it out**, then **send it**, and the first of those takes no
 transport at all. Not "takes one and does not use it": there is nothing it
 could send with, which is the only version of that promise that survives
 somebody editing the file. It writes down a decision for everybody, refusals
@@ -240,7 +241,7 @@ somebody pressed the obvious button.
 The other thing worth taking from the original: while a campaign is going out
 there is a bar, a count, the address being written to at this moment, and a red
 button. Four hundred at thirty a minute runs for a quarter of an hour, and for
-that quarter of an hour somebody has to be able to change their mind — because
+that quarter of an hour somebody has to be able to change their mind, because
 the subject line is wrong, or the wrong list was picked.
 
 It stops **between two messages, never inside one**. What has gone has gone;
@@ -253,15 +254,15 @@ in the middle of a message instead.
 Anything that receives mail treats a burst from one sender as what it looks
 like, and the punishment lands on the whole domain's reputation rather than on
 the one campaign. So the gap is measured from the **start** of one send to the
-start of the next — measuring from the end lets a fast transport go as fast as
-it likes, which is exactly the case that gets a domain blocked.
+start of the next: measuring from the end lets a fast transport go as fast as it
+likes, exactly the case that gets a domain blocked.
 
 ### Everything about one person
 
 ![One person](docs/one-person.png)
 
 Every basis ever recorded, the suppression, and every message ever decided
-about them — for when they write in and ask. A consent is a **row**, not a
+about them, for when they write in and ask. A consent is a **row**, not a
 column: agreeing, changing your mind and agreeing again leaves three rows, and
 the current answer is the newest of them. A boolean would leave one, and it
 would be a boolean nobody could defend.
@@ -296,8 +297,8 @@ one thing; a service that never calls it, or has a route that goes around it,
 is another, and only a real request finds that out.
 
 **`npm run check:screen`** drives the console with the browser already on this
-machine. It counts rather than samples — a page that draws the first three rows
-and stops looks exactly like a page that works — and it asserts that the reason
+machine. It counts rather than samples (a page that draws the first three rows
+and stops looks exactly like a page that works), and it asserts that the reason
 somebody was held back is *on the page*, which is the whole claim. It found a
 `POST` that was going out as a `GET` because the method was inferred from
 whether there was a body.
@@ -316,7 +317,7 @@ redrawn as two.
 
 ![The mark](docs/the-mark.png)
 
-Nothing in `npm run screenshots` photographs the screen — it starts its own
+Nothing in `npm run screenshots` photographs the screen; it starts its own
 service, opens the console in a browser and captures **the page**. A screenshot
 of the screen is a screenshot of everything that was on it.
 
@@ -325,7 +326,7 @@ of the screen is a screenshot of everything that was on it.
 ## What it deliberately does not do
 
 The tool this was rebuilt from sent its messages by **driving somebody's web
-messaging client with a browser** — loading the site, restoring a saved
+messaging client with a browser**: loading the site, restoring a saved
 session, opening a chat by phone number, typing, pressing send. That is not
 rebuilt here, and not because it would have been hard.
 
@@ -338,9 +339,9 @@ intention of whoever runs it. The rest of this project exists to make that
 impossible. Shipping that transport would put it back.
 
 So a transport is an interface, and the three above are the ones that can be
-shipped honestly. Anything else — a provider's API, a real mail relay — is
-twenty lines against a documented service by somebody who has an account with
-it, which is a different act from finding it already written.
+shipped honestly. Anything else (a provider's API, a real mail relay) is twenty
+lines against a documented service by somebody who has an account with it,
+which is a different act from finding it already written.
 
 **This is not legal advice and it does not make a campaign lawful.** It
 enforces four things that are necessary and are routinely skipped. Whether a
@@ -363,7 +364,7 @@ src/http/api.ts           the service and the console it serves
 sink/smtp.js              a real SMTP server that delivers nowhere
 ```
 
-One dependency — [express](https://expressjs.com) — and Node's own
+One dependency ([express](https://expressjs.com)) and Node's own
 [`node:sqlite`](https://nodejs.org/api/sqlite.html), so the database needs
 nothing installed. SMTP is written out rather than pulled in, because the
 conversation is the part that goes wrong: multi-line replies, dot-stuffing,
@@ -371,7 +372,7 @@ conversation is the part that goes wrong: multi-line replies, dot-stuffing,
 mid-message. A service whose sending is a black box is a service nobody can
 debug when a server starts refusing things at four in the afternoon.
 
-Requires **Node 24 or newer**, for `node:sqlite` — see [Before you start](#before-you-start).
+Requires **Node 24 or newer**, for `node:sqlite` (see [Before you start](#before-you-start)).
 
 ![What the sink caught](docs/the-sink.png)
 
@@ -392,7 +393,7 @@ original system are included in this repository.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT; see [LICENSE](LICENSE).
 
 ---
 
