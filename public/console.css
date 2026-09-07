@@ -299,7 +299,13 @@ dialog {
 dialog::backdrop { background: rgba(16, 26, 46, 0.45); }
 dialog h2 { margin: 0 0 0.8rem; font-family: var(--mono); font-size: 1rem; }
 .close { position: absolute; top: 0.7rem; right: 0.8rem; background: none; border: none; color: var(--ink-faint); font-size: 1rem; }
-.close:hover { background: none; color: var(--ink); }
+/* IL TIPO DAVANTI NON E' DECORAZIONE, PAREGGIA UNA SPECIFICITA'.
+   `button:hover:not(:disabled)` piu' su vale (0,2,1) e batteva `.close:hover`,
+   che vale (0,2,0): il fondo scuro di quella regola restava, e la crocetta —
+   che questa riga porta a --ink, quasi nero — ci finiva sopra e all'hover
+   spariva. Con il tipo davanti le due regole pareggiano, e a parita' decide
+   chi viene dopo nel file, cioe' questa. */
+button.close:hover { background: none; color: var(--ink); }
 
 .trail { list-style: none; margin: 0 0 1rem; padding: 0; }
 .trail li { padding: 0.45rem 0 0.45rem 0.9rem; border-left: 3px solid var(--line); font-size: 0.86rem; }

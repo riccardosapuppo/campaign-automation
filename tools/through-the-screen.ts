@@ -216,6 +216,37 @@ async function run() {
     has('their consent is shown', await text(page, '#history-body'), 'the sign-up form on the site');
     is('and it is a dialog somebody can close', await page.locator('#history .close').isVisible(), true);
 
+      /* `isVisible()` DICE UNA COSA DIVERSA DA QUELLA CHE SEMBRA.
+       *
+       * Guarda display, visibility, opacity e la dimensione del riquadro. Per
+       * il browser un elemento e' visibile anche quando il suo testo ha
+       * esattamente il colore del fondo su cui sta. La riga qui sopra e'
+       * passata per mesi mentre la crocetta, sotto il puntatore, era quasi nera
+       * su un navy quasi nero: una regola globale su `button:hover` era piu'
+       * specifica di `.close:hover` e le rimetteva sotto il proprio fondo.
+       *
+       * Quindi si passa il mouse e si guardano i due colori che il browser ha
+       * calcolato per davvero. Tre a uno e' il rapporto che WCAG 2 chiede a un
+       * comando; sotto quella soglia il segno c'e' e non si vede. */
+      await page.locator('#history .close').hover();
+
+      const crocetta = await page.locator('#history .close').evaluate((nodo: Element) => {
+        const dietro = (da: Element | null): string => {
+          for (let e = da; e; e = e.parentElement) {
+            const b = getComputedStyle(e as HTMLElement).backgroundColor;
+            if (b && b !== 'transparent' && b !== 'rgba(0, 0, 0, 0)') return b;
+          }
+          return 'rgb(255, 255, 255)';
+        };
+        return { testo: getComputedStyle(nodo as HTMLElement).color, fondo: dietro(nodo) };
+      });
+
+      is(
+        'and the cross on it can still be seen under the pointer',
+        contrasto(crocetta.testo, crocetta.fondo) >= 3,
+        true
+      );
+
     // ------------------------------------------------------- 8. the screen
     say('and the page itself');
     is('nothing was thrown while all that happened', thrown.join(' | '), '');
@@ -245,6 +276,29 @@ function text(page: any, selector: any) {
   return page.locator(selector).innerText();
 }
 
+/**
+ * Il rapporto di contrasto fra due colori, come lo definisce WCAG 2.
+ *
+ * Sta qui perche' nessuna delle altre verifiche guarda i colori: un elemento
+ * disegnato del colore del proprio fondo e' visibile per il browser e
+ * invisibile per chi legge, e la differenza fra le due cose e' esattamente il
+ * difetto che questo file esiste per trovare.
+ */
+function contrasto(davanti: string, dietro: string): number {
+  const canale = (c: string) => {
+    const v = Number(c) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+
+  const luce = (colore: string) => {
+    const [r, g, b] = (colore.match(/[0-9]+([.][0-9]+)?/g) ?? ['0', '0', '0']).slice(0, 3);
+    return 0.2126 * canale(r) + 0.7152 * canale(g) + 0.0722 * canale(b);
+  };
+
+  const a = luce(davanti);
+  const b = luce(dietro);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
 function say(what: string) {
   console.log(`\n  ${what}`);
 }

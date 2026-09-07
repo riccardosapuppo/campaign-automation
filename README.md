@@ -280,7 +280,7 @@ Five layers, and each one has caught something the others could not.
 npm test              # 132  the rules, the importer, the template, the store
 npm run typecheck    #     the types, and that Node still runs this without a build
 npm run walkthrough   #  36  the whole story through HTTP, against a live service
-npm run check:screen  #  31  the console, driven with a browser
+npm run check:screen  #  32  the console, driven with a browser
 npm run check:smtp    #  13  against an SMTP server nobody here wrote
 npm run check:serving #  22  how the console is served, against the running service
 npm run check:mark    #  11  the icon, at the size it is actually seen
