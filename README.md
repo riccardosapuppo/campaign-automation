@@ -375,6 +375,19 @@ Requires **Node 24 or newer**, for `node:sqlite` — see [Before you start](#bef
 
 ![What the sink caught](docs/the-sink.png)
 
+## Production reconstruction
+
+This repository is an independent reconstruction of a production system I
+designed and developed.
+
+Confidentiality and intellectual property constraints mean the original cannot
+be published. It was rebuilt from scratch so it could be shown and run,
+preserving the core architecture, workflows and technical challenges of the
+production solution, with newly written code and fictional data.
+
+No proprietary source code, confidential data or client assets from the
+original system are included in this repository.
+
 ---
 
 ## Licence
