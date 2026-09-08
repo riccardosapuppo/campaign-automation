@@ -170,6 +170,14 @@ textarea, #c-subject, #reply-text { font-family: var(--mono); font-size: 0.82rem
 
 .said { font-size: 0.84rem; color: var(--ink-soft); }
 
+/* L'esito di un passo prende una riga sua. In linea, una frase lunga va a
+   capo e riparte dal margine della voce, e la parola avanzata finisce
+   sotto il numero come se fosse un altro passo. Non si rende la voce un
+   contenitore flex: quello toglierebbe il numero dell'elenco, e su questa
+   pagina i numeri dei passi vogliono dire qualcosa. */
+#step-decide .said,
+#step-send .said { display: block; margin-top: 0.35rem; }
+
 /* --------------------------------------------------------------- tables */
 
 .scrolls { overflow-x: auto; }
@@ -270,6 +278,12 @@ button.link:hover:not(:disabled) { background: none; color: var(--ink); }
 .fields label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--ink-soft); }
 .fields .wide { grid-column: 1 / -1; }
 .fields button { justify-self: start; }
+
+/* Il bottone che chiude un passo non e' un campo: sta fuori da `.fields`,
+   quindi non prende il `gap` della griglia, e `.step` non dice niente ai
+   propri figli diretti. Senza questa riga si appoggia al textarea che ha
+   sopra. Lo stacco e' quello che `.doing` usa gia' per la stessa cosa. */
+.step > button { margin-top: 0.9rem; }
 
 .steps ol { margin: 1rem 0 0; padding-left: 1.1rem; }
 .steps li { margin-bottom: 0.7rem; }
