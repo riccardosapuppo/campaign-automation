@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Campaigns — who may be written to</title>
+    <title>Campaigns: who may be written to</title>
     <link rel="icon" href="mark.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="console.css" />
   </head>
@@ -74,7 +74,7 @@
           <h2><svg class="glyph" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M8 4.5 3.5 9l4.5 4.5"/><path d="M3.5 9h7.5a5.5 5.5 0 0 1 5.5 5.5v1"/></svg>A reply came in</h2>
           <p>
             This is how an unsubscribe actually arrives: somebody replies to the
-            message. Type what they wrote and see what it is read as — including
+            message. Type what they wrote and see what it is read as, including
             the ones that must <strong>not</strong> be read as a stop.
           </p>
         </div>
@@ -130,7 +130,7 @@
 
             <p class="hint">
               This is the list above, and the only way to change it is to change
-              the list — there is no box here to paste addresses into. That is
+              the list; there is no box here to paste addresses into. That is
               the point: everybody a campaign reaches got here through a file
               with a consent date in it.
             </p>
@@ -170,15 +170,15 @@ To stop hearing from us, reply STOP and we will not write again.</textarea>
               <label>
                 and then send it
                 <select id="transport">
-                  <option value="dry-run">as a dry run — renders everything, sends nothing</option>
-                  <option value="file">to a folder — one file each, for somebody to read</option>
-                  <option value="smtp">over SMTP — to the sink on 127.0.0.1:3609</option>
+                  <option value="dry-run">as a dry run: renders everything, sends nothing</option>
+                  <option value="file">to a folder: one file each, for somebody to read</option>
+                  <option value="smtp">over SMTP: the sink on 127.0.0.1:3609</option>
                 </select>
               </label>
               <label>
                 at
                 <select id="rate">
-                  <option value="30">30 a minute — the pace a real campaign goes at</option>
+                  <option value="30">30 a minute, the pace a real campaign goes at</option>
                   <option value="600" selected>as fast as it will go</option>
                 </select>
               </label>
@@ -239,12 +239,13 @@ To stop hearing from us, reply STOP and we will not write again.</textarea>
 
     <footer>
       <p>
-        A demonstration — an independent reconstruction of a production system I
-        designed and developed. Everything is on this machine: the database is a file
-        under <code>data/</code>, and SMTP goes to a sink on localhost that delivers
-        nowhere.
+        A demonstration. It reconstructs a production system I designed and
+        developed; the original cannot be published, so this one was written
+        from scratch. Everything is on this machine: the database is a file
+        under <code>data/</code>, and SMTP goes to a sink on localhost that
+        delivers nowhere.
       </p>
-      <p class="by">Campaigns 1.0.0 — developed by Riccardo Sapuppo</p>
+      <p class="by">Campaigns 1.0.0, developed by <a href="https://github.com/riccardosapuppo" target="_blank" rel="noopener noreferrer">Riccardo Sapuppo</a></p>
     </footer>
 
     <script type="module" src="console.js"></script>

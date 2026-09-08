@@ -278,7 +278,7 @@ from the same spreadsheet, arrive with no history, and are written to again.
 Five layers, and each one has caught something the others could not.
 
 ```bash
-npm test              # 132  the rules, the importer, the template, the store
+npm test              # 133  the rules, the importer, the template, the store
 npm run typecheck    #     the types, and that Node still runs this without a build
 npm run walkthrough   #  36  the whole story through HTTP, against a live service
 npm run check:screen  #  32  the console, driven with a browser

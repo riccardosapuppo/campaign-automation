@@ -329,10 +329,29 @@ footer code { font-family: var(--mono); }
 
 @media (prefers-reduced-motion: no-preference) {
   .panel { transition: border-color 0.15s ease; }
+  footer .by a { transition: color 0.15s ease; }
 }
 
 /* Who wrote it, where the version is visible. */
 footer .by { margin-top: 0.4rem; color: var(--ink-faint); font-size: 0.78rem; }
+
+/* The name in that line is the one link on the page, and it has to read as a
+   link without turning blue. So it takes no new colour: it steps up from the
+   faint grey the rest of the footer is set in to the grey this console already
+   uses for its secondary text, which is enough of a lift to be seen — and it
+   carries an underline, because at 0.78rem colour alone is not a signal
+   anybody should have to trust. Hover goes the last step to --ink, the way the
+   quiet buttons darken. The focus ring is the page's own, from :focus-visible
+   above; the radius only keeps it from cutting the corners of a small word. */
+footer .by a {
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  border-radius: 3px;
+}
+
+footer .by a:hover { color: var(--ink); }
 
 /*
  * The panel glyphs. Drawn here, in the page, rather than pulled from an icon

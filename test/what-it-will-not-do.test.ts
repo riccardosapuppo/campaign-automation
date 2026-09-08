@@ -95,9 +95,35 @@ describe('the page fetches nothing from anywhere', () => {
     // A tool whose claim is that nothing leaves this machine cannot open with a
     // request to a font host telling it that this console exists and that
     // somebody is looking at it.
-    const outside = web.filter((one) => /(src|href)\s*=\s*["']https?:|url\(\s*["']?https?:/i.test(one.text));
+    //
+    // What that promise is about is the page reaching out by itself: a
+    // stylesheet, a script, a face, an image, all fetched before anybody has
+    // done anything. A link somebody chooses to click is the other thing
+    // entirely — nothing is requested until a person asks for it, and then
+    // they are asking on their own behalf, in a tab of their own. So this
+    // looks at what a browser fetches unasked: every `src`, the `href` of a
+    // <link>, and every url() in the stylesheet.
+    const fetched = /\bsrc\s*=\s*["']https?:|<link\b[^>]*\bhref\s*=\s*["']https?:|url\(\s*["']?https?:/i;
+    const outside = web.filter((one) => fetched.test(one.text));
 
     assert.deepEqual(outside.map((one) => one.file), []);
+  });
+
+  it('and the links somebody can click cannot reach back into this page', () => {
+    // The exception above is only safe while it stays an exception. A tab
+    // opened with target="_blank" and no rel gets a handle on the page that
+    // opened it and can send it somewhere else, which on a console like this
+    // one would be worth doing to somebody. Every outward anchor here says
+    // noopener, so the new tab is handed nothing.
+    const html = web.find((one) => one.file === 'index.html')!.text;
+    const outward = [...html.matchAll(/<a\b[^>]*href\s*=\s*["']https?:[^>]*>/gi)].map((one) => one[0]);
+
+    assert.ok(outward.length > 0, 'there is no outward link at all, so this cannot pass by finding nothing');
+
+    for (const anchor of outward) {
+      assert.match(anchor, /target\s*=\s*["']_blank["']/, `${anchor} does not open in a tab of its own`);
+      assert.match(anchor, /rel\s*=\s*["'][^"']*\bnoopener\b/, `${anchor} hands the new tab a handle on this page`);
+    }
   });
 
   it('and the face it uses is in the repository, with its licence', () => {
